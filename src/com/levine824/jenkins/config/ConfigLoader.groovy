@@ -11,7 +11,7 @@ class ConfigLoader {
             Map config = new Yaml().load(yaml)
             return new ConfigLoader(config)
         } catch (Exception e) {
-            throw new Exception("读取配置文件错误:" + e.getMessage())
+            throw new Exception("Failed to load configuration:" + e.getMessage())
         }
     }
 
@@ -19,20 +19,36 @@ class ConfigLoader {
         this.config = config
     }
 
-    Map getConfig(ConfigType type, String key = null) {
+    def generalConfig(String name) {
+        return getConfig(ConfigType.GENERAL, name)
+    }
+
+    Map stageConfig(String stageName) {
+        return getConfig(ConfigType.STAGE, stageName) as Map
+    }
+
+    Map stepConfig(String stepName) {
+        return getConfig(ConfigType.STEP, stepName) as Map
+    }
+
+    private def getConfig(ConfigType type, String... names) {
+        return getConfig(type.toString(), names)
+    }
+
+    private def getConfig(String type, String... names) {
         try {
-            if (key == null) {
-                if (config instanceof Map<String, Map>) {
-                    return config?.get(type.toString()) ?: [:]
-                }
-            } else {
-                if (config instanceof Map<String, Map<String, Map>>) {
-                    return config?.get(type.toString())?.get(key) ?: [:]
+            def config = this.config?.get(type) ?: [:]
+            names.each { name ->
+                if (config instanceof Map) {
+                    config = config?.get(name) ?: [:]
+                } else {
+                    throw new IllegalArgumentException("The key called " + name + " is not existed.")
                 }
             }
-            throw new IllegalArgumentException("配置项" + type + "格式错误!")
+            return config
         } catch (MissingPropertyException ignored) {
             return [:]
         }
     }
+
 }

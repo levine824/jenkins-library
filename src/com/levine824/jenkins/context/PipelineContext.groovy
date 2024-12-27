@@ -25,7 +25,7 @@ class PipelineContext {
         this.loader = ConfigLoader.load(yaml)
     }
 
-    Map getEnvironment(Script step, ConfigType type, String name) {
+    Map getEnvironment(Script step, String name = '') {
         return [:]
     }
 
