@@ -5,34 +5,33 @@ import java.util.stream.Stream
 
 class MapUtils {
 
-    static Map merge(Map m1, Map m2) {
-        // 相同的key，小map的值覆盖大map
-        Map mergedMap = m1.size() >= m2.size() ? parseMap(m1, m2) : parseMap(m2, m1)
-        return mergedMap
+    /**
+     * Merge given maps which may nest with Map or List.
+     *
+     * @param lhs map to be merged, better be the bigger one
+     * @param rhs map to be merged
+     * @return merged Map
+     */
+    Map merge(Map lhs, Map rhs) {
+        return mergeMap(lhs, rhs)
     }
 
-    private static Map parseMap(Map large, Map small) {
-        Map map = large
-        if (!small.isEmpty()) {
-            small.each { key, value ->
-                if (!large.containsKey(key)) {
-                    map.put(key, value)
-                    return
-                }
-                if (value instanceof Map) {
-                    map.put(key, parseMap((Map) large.get(key), value))
-                } else if (value instanceof List) {
-                    map.put(key, parseList((List) large.get(key), value))
-                } else {
-                    map.put(key, value)
-                }
+    private static Map mergeMap(Map lhs, Map rhs) {
+        return rhs.inject(lhs.clone() as Map) { map, entry ->
+            if (map[entry.key] instanceof Map && entry.value instanceof Map) {
+                map[entry.key] = mergeMap(map[entry.key] as Map, entry.value as Map)
+            } else if (map[entry.key] instanceof List && entry.value instanceof List) {
+                mergeList(map[entry.key] as List, entry.value as List)
+            } else {
+                map[entry.key] = entry.value
             }
+            return map
         }
-        return map
     }
 
-    private static List parseList(List l1, List l2) {
-        // 合并两个list的值
-        return Stream.concat(l1.stream(), l2.stream()).distinct().collect(Collectors.toList())
+    private static List mergeList(List lhs, List rhs) {
+        // just combine elements of two lists and remove duplicate elements
+        return Stream.concat(lhs.stream(), rhs.stream()).distinct().collect(Collectors.toList())
     }
+
 }

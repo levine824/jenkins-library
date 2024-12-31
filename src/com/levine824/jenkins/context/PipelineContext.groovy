@@ -1,32 +1,24 @@
 package com.levine824.jenkins.context
 
-import com.levine824.jenkins.config.ConfigLoader
-import com.levine824.jenkins.config.ConfigType
+import com.levine824.jenkins.config.ConfigHelper
 
 class PipelineContext {
     private Script script
-    private ConfigLoader loader
 
-    private static volatile PipelineContext instance
+    private ConfigHelper helper
 
-    static PipelineContext getInstance(Script script, String yaml) {
-        if (instance == null) {
-            synchronized (PipelineContext.class) {
-                if (instance == null) {
-                    instance = new PipelineContext(script, yaml)
-                }
-            }
+    private final Map<String, Map> cache = [:]
+
+    Map getEnvironment(Script step, Map args = [:]) {
+        Map stepEnv = null
+        Map sharedEnv = null
+        synchronized (this.cache) {
+            sharedEnv = this.cache.get(step.STEP_NAME)
         }
-        return instance
-    }
+        if (sharedEnv != null) {
+            stepEnv = sharedEnv
+        } else {
 
-    private PipelineContext(Script script, String yaml) {
-        this.script = script
-        this.loader = ConfigLoader.load(yaml)
+        }
     }
-
-    Map getEnvironment(Script step, String name = '') {
-        return [:]
-    }
-
 }
