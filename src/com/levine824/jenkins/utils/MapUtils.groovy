@@ -6,13 +6,13 @@ import java.util.stream.Stream
 class MapUtils {
 
     /**
-     * Merge given maps which may nest with Map or List.
+     * Merges given maps which nest with the {@code Map} or the {@code List}.
      *
-     * @param lhs map to be merged, better be the bigger one
-     * @param rhs map to be merged
-     * @return merged Map
+     * @param lhs the map to be merged, better be the bigger one
+     * @param rhs the map to be merged
+     * @return the merged {@code Map}
      */
-    Map merge(Map lhs, Map rhs) {
+    static Map merge(Map lhs, Map rhs) {
         return mergeMap(lhs, rhs)
     }
 
@@ -32,6 +32,40 @@ class MapUtils {
     private static List mergeList(List lhs, List rhs) {
         // just combine elements of two lists and remove duplicate elements
         return Stream.concat(lhs.stream(), rhs.stream()).distinct().collect(Collectors.toList())
+    }
+
+    /**
+     * Iterates and concatenates all the keys with the specified string.
+     *
+     * @param map a {@code Map}
+     * @param prefix the string added to the beginning of all keys
+     * @param separator the delimiter for concatenating keys
+     * @return the flat {@code Map}
+     */
+    static Map flatten(Map map, String prefix = '', String separator = '.') {
+        def flatMap = [:]
+        map.collectEntries { key, value ->
+            def newKey = prefix ? prefix + separator + key : key.toString()
+            if (value instanceof Map) {
+                flatMap.putAll(flatten(value, newKey))
+            } else {
+                flatMap.put(newKey, value)
+            }
+        }
+        return flatMap
+    }
+
+    /**
+     * Converts all the keys to the environment variable.
+     *
+     * @param map a {@code Map}
+     * @return the {@code Map}, converted to to the environment variable
+     */
+
+    static Map toEnv(Map map) {
+        return map.collectEntries { key, value ->
+            [(StringUtils.toEnv(key.toString())): value]
+        }
     }
 
 }

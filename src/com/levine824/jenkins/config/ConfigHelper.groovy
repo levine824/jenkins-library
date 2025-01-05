@@ -1,8 +1,7 @@
 package com.levine824.jenkins.config
 
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.FirstParam
-import groovy.transform.stc.SecondParam
+import com.levine824.jenkins.utils.MapUtils
+import com.levine824.jenkins.utils.StringUtils
 
 class ConfigHelper {
     private static final String SEPARATOR = '_'
@@ -25,21 +24,19 @@ class ConfigHelper {
         return getConfig(ConfigType.STEP, stepName) as Map
     }
 
-    private def getConfig(ConfigType type, Set<String> configKeys,
-                          @ClosureParams(SecondParam.FirstGenericType.class) Closure<String[]> closure) {
-        def map = [:]
-        configKeys.each { configKey ->
-            def keys = closure.call(configKey)
-            def value = getConfig(type, keys)
-            map.put(configKey, value)
-        }
-        return map
+    Map getConfigAsEnv(ConfigType type, String key) {
+        def value = getConfig(type, key)
+        return MapUtils.toEnv(MapUtils.flatten([(key): value]))
     }
 
-    private def getConfig(ConfigType type, String configKey,
-                          @ClosureParams(SecondParam.class) Closure<String[]> closure) {
-        def keys = closure.call(configKey)
-        return getConfig(type, keys)
+    Map getConfigAsEnv(ConfigType type, Set<String> configKeys) {
+        def map = [:]
+        configKeys.each { configKey ->
+            def key = StringUtils.toEnv(configKey)
+            def value = getConfig(type, StringUtils.toStringArray(configKey, SEPARATOR))
+            map.put(key, value)
+        }
+        return MapUtils.flatten(map)
     }
 
     private def getConfig(ConfigType type, String... keys) {
