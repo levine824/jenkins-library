@@ -4,8 +4,6 @@ import com.levine824.jenkins.utils.MapUtils
 import com.levine824.jenkins.utils.StringUtils
 
 class ConfigHelper {
-    private static final String SEPARATOR = '_'
-
     private Map config
 
     ConfigHelper(Map config) {
@@ -24,26 +22,42 @@ class ConfigHelper {
         return getConfig(ConfigType.STEP, stepName) as Map
     }
 
+    /**
+     * Gets the config map and converts all keys to the environment variable.
+     * If nested map, this method will flatten this map.
+     *
+     * @param type the config type, representing the top node of yaml
+     * @param key the config name
+     * @return the {@code Map}
+     */
     Map getConfigAsEnv(ConfigType type, String key) {
         def value = getConfig(type, key)
         return MapUtils.toEnv(MapUtils.flatten([(key): value]))
     }
 
-    Map getConfigAsEnv(ConfigType type, Set<String> configKeys) {
+    /**
+     * Iterates through a {@code Set}, converting the config to the environment variable.
+     *
+     * @param type the config type, representing the top node of yaml
+     * @param configKeys the string composed of separators and nodes
+     * @param regex the delimiting regular expression
+     * @return the {@code Map}
+     */
+    Map getConfigAsEnv(ConfigType type, Set<String> configKeys, String regex = '_') {
         def map = [:]
         configKeys.each { configKey ->
             def key = StringUtils.toEnv(configKey)
-            def value = getConfig(type, StringUtils.toStringArray(configKey, SEPARATOR))
+            def value = getConfig(type, StringUtils.toStringArray(configKey, regex))
             map.put(key, value)
         }
-        return MapUtils.flatten(map)
+        return MapUtils.toEnv(MapUtils.flatten(map))
     }
 
-    private def getConfig(ConfigType type, String... keys) {
+    private Object getConfig(ConfigType type, String... keys) {
         return getConfig(type.toString(), keys)
     }
 
-    private def getConfig(String type, String... keys) {
+    private Object getConfig(String type, String... keys) {
         try {
             return keys.inject(this.config?.get(type) ?: [:]) { value, key ->
                 if (value instanceof Map) {

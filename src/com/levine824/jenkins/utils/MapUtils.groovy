@@ -39,13 +39,13 @@ class MapUtils {
      *
      * @param map a {@code Map}
      * @param prefix the string added to the beginning of all keys
-     * @param separator the delimiter for concatenating keys
+     * @param delimiter the delimiter for concatenating keys
      * @return the flat {@code Map}
      */
-    static Map flatten(Map map, String prefix = '', String separator = '.') {
+    static Map flatten(Map map, String prefix = '', String delimiter = '.') {
         def flatMap = [:]
         map.collectEntries { key, value ->
-            def newKey = prefix ? prefix + separator + key : key.toString()
+            def newKey = prefix ? prefix + delimiter + key : key.toString()
             if (value instanceof Map) {
                 flatMap.putAll(flatten(value, newKey))
             } else {
@@ -61,7 +61,6 @@ class MapUtils {
      * @param map a {@code Map}
      * @return the {@code Map}, converted to to the environment variable
      */
-
     static Map toEnv(Map map) {
         return map.collectEntries { key, value ->
             [(StringUtils.toEnv(key.toString())): value]

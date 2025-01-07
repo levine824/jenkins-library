@@ -11,7 +11,7 @@ class ConfigLoader {
      * Parse the only YAML document in a String and produce the Map.
      *
      * @param yaml YAML data to load from
-     * @return parsed Map
+     * @return parsed {@code Map}
      */
     static Map load(String yaml) {
         try {
