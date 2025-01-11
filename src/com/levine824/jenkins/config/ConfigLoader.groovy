@@ -3,7 +3,7 @@ package com.levine824.jenkins.config
 import org.yaml.snakeyaml.Yaml
 
 /**
- * This class provides static methods to load the configuration.
+ * Provides static methods to load the configuration.
  */
 class ConfigLoader {
 
