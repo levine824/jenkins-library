@@ -4,16 +4,16 @@ import com.levine824.jenkins.utils.MapUtils
 
 class ConfigHelper {
     private Script step
-
     private String stepName
 
-    private Object getStepProperty(String property) {
-        return step.getMetaClass().hasProperty(step, property) ? step.getProperty(property) : null
+    private Set<String> parameterKeys
+
+    private Map<String, Set<String>> configKeys = [:]
+
+    ConfigHelper(Script step) {
+        this.step = step
     }
 
-    static Map configToEnv(Map config) {
-        return MapUtils.toEnvCase(MapUtils.flatten(config))
-    }
 
     static Map getConfig(Map config, ConfigType type, Set<String> configKeys, String regex) {
         Map map = [:]
