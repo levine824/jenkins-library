@@ -1,19 +1,31 @@
 package com.levine824.jenkins.config
 
-import com.levine824.jenkins.utils.MapUtils
-
 class ConfigHelper {
     private Script step
     private String stepName
 
-    private Set<String> parameterKeys
-
-    private Map<String, Set<String>> configKeys = [:]
-
     ConfigHelper(Script step) {
         this.step = step
+        this.stepName = getStepProperty('STEP_NAME')
+        if (!stepName) throw new IllegalArgumentException('Step has no public name!')
     }
 
+    @Override
+    Object getProperty(String property) {
+        if (property.endsWith('_KEYS')) {
+            return getStepProperty(property)
+        } else {
+            return super.getProperty(property)
+        }
+    }
+
+    private Object getStepProperty(String property) {
+        return step.getMetaClass().hasProperty(step, property) ? step.getProperty(property) : null
+    }
+
+    Map getStepConfig() {
+        return [:]
+    }
 
     static Map getConfig(Map config, ConfigType type, Set<String> configKeys, String regex) {
         Map map = [:]
@@ -42,7 +54,7 @@ class ConfigHelper {
                 }
                 return value
             }
-        } catch (MissingPropertyException ignored) {
+        } catch (MissingPropertyException mpe) {
             return [:]
         }
     }
