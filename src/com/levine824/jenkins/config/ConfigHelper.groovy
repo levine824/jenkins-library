@@ -1,10 +1,13 @@
 package com.levine824.jenkins.config
 
 class ConfigHelper {
+    private Map config
+
     private Script step
     private String stepName
 
-    ConfigHelper(Script step) {
+    ConfigHelper(Map config, Script step) {
+        this.config = config
         this.step = step
         this.stepName = getStepProperty('STEP_NAME')
         if (!stepName) throw new IllegalArgumentException('Step has no public name!')
@@ -24,7 +27,14 @@ class ConfigHelper {
     }
 
     Map getStepConfig() {
-        return [:]
+        def map = [:]
+        def stepConfig = getConfig(config, ConfigType.STEP, stepName) as Map
+        for (ConfigType type : ConfigType.values()) {
+            def configKeys = type.name() + '_CONFIG_KEYS'
+            map.put(configKeys, getConfig(config, type, getProperty(configKeys) as Set, '.'))
+        }
+        map.putAll(step.getBinding().getVariables())
+        return map
     }
 
     static Map getConfig(Map config, ConfigType type, Set<String> configKeys, String regex) {
@@ -41,12 +51,12 @@ class ConfigHelper {
     }
 
     static Object getConfig(Map config, ConfigType type, String... keys) {
-        return getConfig(config, type.toString(), keys)
+        return getConfig(getConfig(config, type.toString()) as Map, keys)
     }
 
-    static Object getConfig(Map config, String type, String... keys) {
+    static Object getConfig(Map config, String... keys) {
         try {
-            return keys.inject(config?.get(type) ?: [:]) { value, key ->
+            return keys.inject(config) { value, key ->
                 if (value instanceof Map) {
                     value = value?.get(key) ?: [:]
                 } else {
