@@ -1,18 +1,19 @@
 general:
   projectName: 'jenkins-library'
   git:
-    url:
+    url: 'projectUrl'
     branch:
 
 stage:
-  test:
-    label: 'test'
+  build:
+    maven:
+      command: 'mvn clean package'
+      args: '-DskipTests'
 
 step:
   mainTest:
-    git:
-      url: 'testUrl'
-      username: 'levine'
-      password: '####'
+    url: 'testUrl'
+    username: 'levine'
+    password: '####'
 
 post:

@@ -3,10 +3,6 @@ package com.levine824.jenkins.config
 import java.util.regex.Pattern
 
 class ConfigHelper {
-    private static final String DOT = '.'
-    private static final String PROPERTY_SUFFIX = '_KEYS'
-    private static final String CONFIG_KEYS_SUFFIX = '_CONFIG_KEYS'
-
     private Map config
 
     private Script step
@@ -21,7 +17,7 @@ class ConfigHelper {
 
     @Override
     Object getProperty(String property) {
-        if (property.endsWith(PROPERTY_SUFFIX)) {
+        if (property.endsWith('_KEYS')) {
             return getStepProperty(property)
         } else {
             return super.getProperty(property)
@@ -35,26 +31,34 @@ class ConfigHelper {
     Map getStepConfig() {
         Map map = getConfig(config, ConfigType.STEP, stepName) as Map
         for (ConfigType type : ConfigType.values()) {
-            String configKeys = type.name() + CONFIG_KEYS_SUFFIX
-            map.putAll(getConfig(config, type, getProperty(configKeys) as Set))
+            String configKeys = type.name() + '_CONFIG_KEYS'
+            map.putAll(getConfig(config, type, getProperty(configKeys) as Set, '.'))
         }
         return map
     }
 
-    static Map getConfig(Map config, ConfigType type, Set<String> configKeys, String delimiter = DOT) {
+    static Map getConfig(Map config, ConfigType type, Set<String> configKeys, String delimiter) {
+        return getConfig(getConfig(config, type.toString()) as Map, configKeys, delimiter)
+    }
+
+    static Map getConfig(Map config, Set<String> configKeys, String delimiter) {
         Map map = [:]
         configKeys.each { configKey ->
-            Object value = getConfig(config, type, configKey, delimiter)
+            Object value = getConfig(config, configKey, delimiter)
             map.put(configKey, value)
         }
         return map
     }
 
-    static Object getConfig(Map config, ConfigType type, String configKey, String delimiter = DOT) {
+    static Object getConfig(Map config, ConfigType type, String configKey, String delimiter) {
+        return getConfig(getConfig(config, type.toString()) as Map, configKey, delimiter)
+    }
+
+    static Object getConfig(Map config, String configKey, String delimiter) {
         if (configKey.contains(delimiter)) {
-            return getConfig(config, type, configKey.split(Pattern.quote(delimiter)))
+            return getConfig(config, configKey.split(Pattern.quote(delimiter)))
         } else {
-            return getConfig(config, type, configKey)
+            return getConfig(config, configKey)
         }
     }
 
