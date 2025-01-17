@@ -21,4 +21,18 @@ class ConfigLoader {
         }
     }
 
+    /**
+     * Parse the only YAML document in a stream and produce the Map.
+     *
+     * @param io data to load from
+     * @return parsed {@code Map}
+     */
+    static Map load(InputStream io) {
+        try {
+            return new Yaml().load(io)
+        } catch (Exception e) {
+            throw new Exception("Failed to load configuration:" + e.getMessage())
+        }
+    }
+
 }

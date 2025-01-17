@@ -15,11 +15,8 @@ import groovy.transform.Field
 ]
 
 def main(Map args) {
-    def yaml = libraryResource 'config.yml'
-    if (args.configFile) {
-        yaml = readFile args.configFile
-    }
-    def ctx = new PipelineContext(args.script as Script, ConfigLoader.load(yaml))
+    //def yaml = readFile args.configFile
+    def ctx = new PipelineContext(args.script as Script)
     println(ctx.getEnv(this))
 }
 
