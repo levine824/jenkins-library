@@ -1,4 +1,3 @@
-import com.levine824.jenkins.config.ConfigLoader
 import com.levine824.jenkins.context.PipelineContext
 import groovy.transform.Field
 
@@ -20,4 +19,4 @@ def main(Map args) {
     println(ctx.getEnv(this))
 }
 
-main()
+main([script: this])

@@ -1,27 +1,28 @@
 package com.levine824.jenkins.context
 
 import com.levine824.jenkins.config.ConfigHelper
-import com.levine824.jenkins.config.ConfigLoader
 import com.levine824.jenkins.utils.MapUtils
 
 class PipelineContext implements Serializable {
     private Script script
     private Map config
 
-    PipelineContext(Script script, String yaml = '') {
-        this.script = script
-        InputStream io = null
-        try {
-            io = getClass().getResourceAsStream('/config.yml')
-            Map defaultConfig = ConfigLoader.load(io)
-            this.config = yaml ? MapUtils.merge(defaultConfig, ConfigLoader.load(yaml)) : defaultConfig
-        } catch (IOException e) {
-            throw new Exception("Failed to load default configuration.")
-        } finally {
-            if (io != null) {
-                io.close()
+    private volatile static PipelineContext ctx
+
+    static PipelineContext getInstance(Script script, Map config) {
+        if (ctx == null) {
+            synchronized (PipelineContext.class) {
+                if (ctx == null) {
+                    ctx = new PipelineContext(script, config)
+                }
             }
         }
+        return ctx
+    }
+
+    private PipelineContext(Script script, Map config) {
+        this.script = script
+        this.config = config
     }
 
     Map getEnv(Script step) {
