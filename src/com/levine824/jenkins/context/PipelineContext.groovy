@@ -7,20 +7,7 @@ class PipelineContext implements Serializable {
     private Script script
     private Map config
 
-    private volatile static PipelineContext ctx
-
-    static PipelineContext getInstance(Script script, Map config) {
-        if (ctx == null) {
-            synchronized (PipelineContext.class) {
-                if (ctx == null) {
-                    ctx = new PipelineContext(script, config)
-                }
-            }
-        }
-        return ctx
-    }
-
-    private PipelineContext(Script script, Map config) {
+    PipelineContext(Script script, Map config) {
         this.script = script
         this.config = config
     }

@@ -13,6 +13,6 @@ def call(Map args = [:]) {
         config = MapUtils.merge(config, ConfigLoader.load(yaml))
     }
 
-    def ctx = PipelineContext.getInstance(args.script, config)
+    def ctx = new PipelineContext(args.script, config)
     println(ctx.config)
 }
