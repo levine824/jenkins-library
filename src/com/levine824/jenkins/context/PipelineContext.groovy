@@ -10,11 +10,17 @@ class PipelineContext implements Serializable {
 
     PipelineContext(Script script, String yaml = '') {
         this.script = script
-        try (InputStream io = getClass().getResourceAsStream('config.yml')) {
+        InputStream io = null
+        try {
+            io = getClass().getResourceAsStream('/config.yml')
             Map defaultConfig = ConfigLoader.load(io)
             this.config = yaml ? MapUtils.merge(defaultConfig, ConfigLoader.load(yaml)) : defaultConfig
         } catch (IOException e) {
             throw new Exception("Failed to load default configuration.")
+        } finally {
+            if (io != null) {
+                io.close()
+            }
         }
     }
 
