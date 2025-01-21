@@ -13,7 +13,7 @@ enum ConfigType {
 
     static ConfigType fromString(String text) {
         for (ConfigType type : values()) {
-            if (type.toString() == text) {
+            if (type.toString() == text.toLowerCase()) {
                 return type
             }
         }

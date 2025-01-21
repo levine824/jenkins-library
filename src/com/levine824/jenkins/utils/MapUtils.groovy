@@ -17,11 +17,11 @@ class MapUtils {
     }
 
     private static Map mergeMap(Map lhs, Map rhs) {
-        return rhs.inject(lhs.clone() as Map) { map, entry ->
+        return rhs.inject((Map) lhs.clone()) { map, entry ->
             if (map[entry.key] instanceof Map && entry.value instanceof Map) {
-                map[entry.key] = mergeMap(map[entry.key] as Map, entry.value as Map)
+                map[entry.key] = mergeMap((Map) map[entry.key], (Map) entry.value)
             } else if (map[entry.key] instanceof List && entry.value instanceof List) {
-                mergeList(map[entry.key] as List, entry.value as List)
+                map[entry.key] = mergeList((List) map[entry.key], (List) entry.value)
             } else {
                 map[entry.key] = entry.value
             }
