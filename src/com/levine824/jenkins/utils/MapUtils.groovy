@@ -1,9 +1,25 @@
 package com.levine824.jenkins.utils
 
+import java.util.regex.Pattern
 import java.util.stream.Collectors
 import java.util.stream.Stream
 
 class MapUtils {
+
+    static Map get(Map m, Set<String> s, String delimiter) {
+        Map map = [:]
+        s.each { str ->
+            Object value = get(m, str.split(Pattern.quote(delimiter)))
+            map.put(str, value)
+        }
+        return map
+    }
+
+    static Object get(Map m, String... keys) {
+        return keys.inject(m) { value, key ->
+            return value instanceof Map ? value.get(key) : null
+        }
+    }
 
     /**
      * Merges given maps which nest with the {@code Map} or the {@code List}.
@@ -37,17 +53,17 @@ class MapUtils {
     /**
      * Iterates and concatenates all keys with the specified string.
      *
-     * @param map a {@code Map}
+     * @param m a {@code Map}
      * @param prefix the string added to the beginning of all keys
      * @param delimiter the delimiter for concatenating keys
      * @return the flat {@code Map}
      */
-    static Map flatten(Map map, String prefix = '', String delimiter = '.') {
+    static Map flatten(Map m, String prefix, String delimiter) {
         Map flatMap = [:]
-        map.collectEntries { key, value ->
+        m.collectEntries { key, value ->
             String newKey = prefix ? prefix + delimiter + key : key.toString()
             if (value instanceof Map) {
-                flatMap.putAll(flatten(value, newKey))
+                flatMap.putAll(flatten(value, newKey, delimiter))
             } else {
                 flatMap.put(newKey, value)
             }
@@ -58,11 +74,11 @@ class MapUtils {
     /**
      * Converts all keys to the environment variable case.
      *
-     * @param map a {@code Map}
+     * @param m a {@code Map}
      * @return the converted {@code Map}
      */
-    static toEnvCase(Map map) {
-        return map.collectEntries { key, value ->
+    static toEnvCase(Map m) {
+        return m.collectEntries { key, value ->
             [(StringUtils.toEnvCase(key.toString())): value]
         }
     }

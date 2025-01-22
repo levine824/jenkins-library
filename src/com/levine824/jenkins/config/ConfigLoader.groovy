@@ -22,19 +22,12 @@ class ConfigLoader {
         this.config = config
     }
 
-    Map get(Set<String> combinedKeys, String delimiter = '.') {
-        Map map = [:]
-        combinedKeys.each { combinedKey ->
-            Object value = get(combinedKey.split(Pattern.quote(delimiter)))
-            map.put(combinedKey, value)
-        }
-        return map
+    Map getConfig(String name,Set<String> configKeysSet, String delimiter = '.') {
+        return MapUtils.get((Map)getConfig(name), configKeysSet, delimiter)
     }
 
-    Object get(String... keys) {
-        return keys.inject(config) { value, key ->
-            return value instanceof Map ? value.get(key) : null
-        }
+    Object getConfig(String... keys) {
+        return MapUtils.get(config, keys)
     }
 
 }

@@ -1,22 +1,22 @@
 package com.levine824.jenkins.context
 
 import com.levine824.jenkins.config.ConfigHelper
+import com.levine824.jenkins.config.ConfigLoader
 import com.levine824.jenkins.utils.MapUtils
 
 class PipelineContext implements Serializable {
     private Script script
-    private Map config
+    private ConfigLoader loader
 
-    PipelineContext(Script script, Map config) {
+    PipelineContext(Script script, ConfigLoader loader) {
         this.script = script
-        this.config = config
+        this.loader = loader
     }
 
     Map getEnv(Script step) {
-        ConfigHelper helper = new ConfigHelper(this.config, step)
-        Map stepConfig = helper.getStepConfig()
-        Map parameters = ConfigHelper.getConfig(script.params as Map, step.PARAMETERS_KEYS as Set, '_')
-        return MapUtils.toEnvCase(MapUtils.flatten(stepConfig)).putAll(parameters)
+        ConfigHelper helper = new ConfigHelper(loader, step)
+        Map config = helper.getAllConfig()
+        return MapUtils.toEnvCase(MapUtils.flatten(config, '', '.'))
     }
 
 }

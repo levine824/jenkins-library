@@ -9,17 +9,18 @@ class ConfigHelper {
     private Script step
     private String stepName
 
+    //private String stageName
     //private Set parameterKeys
 
-    private Map<String, Set> configKeys
+    private Map<String, Set> configKeysMap
 
     ConfigHelper(ConfigLoader loader, Script step) {
         this.loader = loader
         this.step = step
         this.stepName = step.getProperty('STEP_NAME')
-        this.configKeys = step.getProperties()
+        this.configKeysMap = step.getProperties()
                 .findAll { it.key.toString().endsWith('_CONFIG_KEYS') }
-                .collectEntries { [it.key: (Set) it.value] }
+                .collectEntries { key, value -> [(key): (Set) value] }
     }
 
     @Override
@@ -27,7 +28,7 @@ class ConfigHelper {
         try {
             return super.getProperty(property)
         } catch (MissingPropertyException mpe) {
-            return configKeys.get(property)
+            return configKeysMap.get(property)
         }
     }
 
@@ -39,21 +40,25 @@ class ConfigHelper {
             String regex = "get(.*)Config"
             Matcher matcher = Pattern.compile(regex).matcher(name)
             if (matcher.matches()) {
-                String type = matcher.group(1).toLowerCase()
-                Map typeConfig = getConfig(config, type) as Map
-                return getConfig(typeConfig, configKeys.get(type + '_CONFIG_KEYS'))
+                return getConfig(matcher.group(1).toLowerCase())
             } else {
                 throw mme
             }
         }
     }
 
+    Map getAllConfig() {
+        Map map = getStepConfig()
+        configKeysMap.keySet().each { map.putAll(getConfig(it.replaceAll('_CONFIG_KEYS', "").toLowerCase())) }
+        return map
+    }
 
     Map getStepConfig() {
-        return getConfig(config, 'step', stepName) as Map
+        return loader.getConfig('step', stepName) as Map
     }
 
-    Object getConfig(String... keys) {
-
+    private Map getConfig(String type) {
+        return loader.getConfig(type, (Set) getProperty(type.toUpperCase() + '_CONFIG_KEYS'))
     }
+
 }
