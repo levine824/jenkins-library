@@ -6,6 +6,15 @@ import java.util.stream.Stream
 
 class MapUtils {
 
+    /**
+     * Splits the strings in the set and use keys to get the value,
+     * then returns this map.
+     *
+     * @param m a {@code Map}
+     * @param s
+     * @param delimiter
+     * @return the {@code Map}
+     */
     static Map get(Map m, Set<String> s, String delimiter) {
         Map map = [:]
         s.each { str ->
@@ -15,6 +24,14 @@ class MapUtils {
         return map
     }
 
+    /**
+     * Iterates through the given keys and returns the value
+     * to which the specified keys are mapped.
+     *
+     * @param m a {@code Map}
+     * @param keys
+     * @return the value
+     */
     static Object get(Map m, String... keys) {
         return keys.inject(m) { value, key ->
             return value instanceof Map ? value.get(key) : null
@@ -24,30 +41,24 @@ class MapUtils {
     /**
      * Merges given maps which nest with the {@code Map} or the {@code List}.
      *
-     * @param lhs the map to be merged, better be the bigger one
-     * @param rhs the map to be merged
+     * @param m1 the map as the base map
+     * @param m2 the map merged into the base map
      * @return the merged {@code Map}
      */
-    static Map merge(Map lhs, Map rhs) {
-        return mergeMap(lhs, rhs)
-    }
-
-    private static Map mergeMap(Map lhs, Map rhs) {
-        return rhs.inject((Map) lhs.clone()) { map, entry ->
+    static Map merge(Map m1, Map m2) {
+        return m2.inject((Map) m1.clone()) { map, entry ->
             if (map[entry.key] instanceof Map && entry.value instanceof Map) {
-                map[entry.key] = mergeMap((Map) map[entry.key], (Map) entry.value)
+                map[entry.key] = merge((Map) map[entry.key], (Map) entry.value)
             } else if (map[entry.key] instanceof List && entry.value instanceof List) {
-                map[entry.key] = mergeList((List) map[entry.key], (List) entry.value)
+                // just combine elements of two lists and remove duplicate elements
+                Stream s1 = ((List) map[entry.key]).stream()
+                Stream s2 = ((List) entry.value).stream()
+                map[entry.key] = Stream.concat(s1, s2).distinct().collect(Collectors.toList())
             } else {
                 map[entry.key] = entry.value
             }
             return map
         }
-    }
-
-    private static List mergeList(List lhs, List rhs) {
-        // just combine elements of two lists and remove duplicate elements
-        return Stream.concat(lhs.stream(), rhs.stream()).distinct().collect(Collectors.toList())
     }
 
     /**
