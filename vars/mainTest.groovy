@@ -2,6 +2,7 @@ import com.levine824.jenkins.config.ConfigHelper
 import com.levine824.jenkins.config.ConfigLoader
 import com.levine824.jenkins.context.PipelineContext
 import com.levine824.jenkins.utils.MapUtils
+import com.levine824.jenkins.utils.StringUtils
 import groovy.transform.Field
 
 @Field String STEP_NAME = 'mainTest'
@@ -33,8 +34,9 @@ general:
   url:
     - github
 '''
-    def ctx = new PipelineContext(this, ConfigLoader.load(config1, config2))
-    println(ctx.getEnv(this))
+    //def ctx = new PipelineContext(this, ConfigLoader.load(config1, config2))
+    //println(ctx.getEnv(this))
+    println(StringUtils.toEnvCase('build.maven.command'))
 }
 
 main()

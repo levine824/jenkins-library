@@ -7,12 +7,12 @@ import java.util.stream.Stream
 class MapUtils {
 
     /**
-     * Splits the strings in the set and use keys to get the value,
-     * then returns this map.
+     * Returns a map whose key is the given string and
+     * value is mapped from keys split by the given string.
      *
      * @param m a {@code Map}
-     * @param s
-     * @param delimiter
+     * @param s a {@code String} set
+     * @param delimiter the delimiter for splitting keys
      * @return the {@code Map}
      */
     static Map get(Map m, Set<String> s, String delimiter) {
@@ -29,8 +29,9 @@ class MapUtils {
      * to which the specified keys are mapped.
      *
      * @param m a {@code Map}
-     * @param keys
-     * @return the value
+     * @param keys the key whose associated value is to be returned
+     * @return the value to which the specified key is mapped,
+     *         or null if this map contains no mapping for the key
      */
     static Object get(Map m, String... keys) {
         return keys.inject(m) { value, key ->

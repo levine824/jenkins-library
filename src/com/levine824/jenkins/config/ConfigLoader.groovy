@@ -3,8 +3,6 @@ package com.levine824.jenkins.config
 import com.levine824.jenkins.utils.MapUtils
 import org.yaml.snakeyaml.Yaml
 
-import java.util.regex.Pattern
-
 class ConfigLoader {
     private Map config
 
@@ -22,11 +20,19 @@ class ConfigLoader {
         this.config = config
     }
 
-    Map getConfig(String name,Set<String> configKeysSet, String delimiter = '.') {
-        return MapUtils.get((Map)getConfig(name), configKeysSet, delimiter)
+    Map get(ConfigType type, Set<String> keys, String delimiter = '.') {
+        return get(type.toString(), keys, delimiter)
     }
 
-    Object getConfig(String... keys) {
+    Map get(String type, Set<String> keys, String delimiter = '.') {
+        return MapUtils.get((Map) get(type), keys, delimiter)
+    }
+
+    Object get(ConfigType type, String... keys) {
+        return MapUtils.get((Map) config.get(type.toString()), keys)
+    }
+
+    Object get(String... keys) {
         return MapUtils.get(config, keys)
     }
 

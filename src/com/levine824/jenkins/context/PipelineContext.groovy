@@ -15,7 +15,7 @@ class PipelineContext implements Serializable {
 
     Map getEnv(Script step) {
         ConfigHelper helper = new ConfigHelper(loader, step)
-        Map config = helper.getAllConfig()
+        Map config = helper.getStepConfig()
         return MapUtils.toEnvCase(MapUtils.flatten(config, '', '.'))
     }
 

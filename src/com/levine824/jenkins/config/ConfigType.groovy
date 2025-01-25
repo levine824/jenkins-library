@@ -11,12 +11,4 @@ enum ConfigType {
         return this.name().toLowerCase()
     }
 
-    static ConfigType fromString(String text) {
-        for (ConfigType type : values()) {
-            if (type.toString() == text.toLowerCase()) {
-                return type
-            }
-        }
-        return null
-    }
 }

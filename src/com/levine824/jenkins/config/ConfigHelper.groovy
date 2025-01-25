@@ -1,25 +1,25 @@
 package com.levine824.jenkins.config
 
+
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 class ConfigHelper {
+    private static final String STEP_PROPERTY_SUFFIX = "_CONFIG_KEYS"
+
     private ConfigLoader loader
 
     private Script step
     private String stepName
 
-    //private String stageName
-    //private Set parameterKeys
-
-    private Map<String, Set> configKeysMap
+    private Map<String, Set> properties
 
     ConfigHelper(ConfigLoader loader, Script step) {
         this.loader = loader
         this.step = step
         this.stepName = step.getProperty('STEP_NAME')
-        this.configKeysMap = step.getProperties()
-                .findAll { it.key.toString().endsWith('_CONFIG_KEYS') }
+        this.properties = step.getProperties()
+                .findAll { it.key.toString().endsWith(STEP_PROPERTY_SUFFIX) }
                 .collectEntries { key, value -> [(key): (Set) value] }
     }
 
@@ -28,7 +28,7 @@ class ConfigHelper {
         try {
             return super.getProperty(property)
         } catch (MissingPropertyException mpe) {
-            return configKeysMap.get(property)
+            return properties.get(property)
         }
     }
 
@@ -47,18 +47,16 @@ class ConfigHelper {
         }
     }
 
-    Map getAllConfig() {
-        Map map = getStepConfig()
-        configKeysMap.keySet().each { map.putAll(getConfig(it.replaceAll('_CONFIG_KEYS', "").toLowerCase())) }
+    Map getStepConfig() {
+        Map map = loader.get(ConfigType.STEP, stepName) as Map
+        properties.keySet().each { str ->
+            map.putAll(getConfig(str.replaceAll(STEP_PROPERTY_SUFFIX, "").toLowerCase()))
+        }
         return map
     }
 
-    Map getStepConfig() {
-        return loader.getConfig('step', stepName) as Map
-    }
-
     private Map getConfig(String type) {
-        return loader.getConfig(type, (Set) getProperty(type.toUpperCase() + '_CONFIG_KEYS'))
+        return loader.get(type, (Set) getProperty(type.toUpperCase() + STEP_PROPERTY_SUFFIX))
     }
 
 }
