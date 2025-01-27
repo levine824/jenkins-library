@@ -3,37 +3,51 @@ package com.levine824.jenkins.config
 import com.levine824.jenkins.utils.MapUtils
 import org.yaml.snakeyaml.Yaml
 
-class ConfigLoader {
-    private Map config
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 
-    static ConfigLoader load(String... yaml) {
-        try {
-            Map config = [:]
-            yaml.each { config = MapUtils.merge(config, new Yaml().load(it)) }
-            return new ConfigLoader(config)
-        } catch (Exception e) {
-            throw new Exception("Failed to load configuration:" + e.getMessage())
+class ConfigLoader {
+    private Map config = [:]
+
+    // 加载默认配置文件
+    ConfigLoader loadDefault() {
+        Path path = Paths.get(getClass().getClassLoader().getResource("config.yml").toURI())
+        loadConfig(path)
+        return this
+    }
+
+    // 加载单个自定义配置文件
+    ConfigLoader loadCustom(String filePath) {
+        Path path = Paths.get(filePath)
+        loadConfig(path)
+        return this
+    }
+
+    // 加载多个自定义配置文件
+    ConfigLoader loadCustom(List<String> filePaths) {
+        filePaths.each { filePath ->
+            loadCustom(filePath)
+        }
+        return this
+    }
+
+    private void loadConfig(Path path) {
+        if (!Files.exists(path)) {
+            throw new FileNotFoundException("Config file not found: ${path}")
+        }
+        try (InputStream is = Files.newInputStream(path)) {
+            Yaml yaml = new Yaml()
+            Map map = new Yaml().load(is)
+            config = MapUtils.mergeMaps(config, map)
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load config file: ${path}", e)
         }
     }
 
-    private ConfigLoader(Map config) {
-        this.config = config
-    }
-
-    Map get(ConfigType type, Set<String> keys, String delimiter = '.') {
-        return get(type.toString(), keys, delimiter)
-    }
-
-    Map get(String type, Set<String> keys, String delimiter = '.') {
-        return MapUtils.get((Map) get(type), keys, delimiter)
-    }
-
-    Object get(ConfigType type, String... keys) {
-        return MapUtils.get((Map) config.get(type.toString()), keys)
-    }
-
-    Object get(String... keys) {
-        return MapUtils.get(config, keys)
+    // 获取配置
+    Map getConfig() {
+        return config
     }
 
 }

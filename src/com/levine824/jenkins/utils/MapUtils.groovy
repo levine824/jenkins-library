@@ -1,98 +1,101 @@
 package com.levine824.jenkins.utils
 
-import java.util.regex.Pattern
-import java.util.stream.Collectors
-import java.util.stream.Stream
-
+/**
+ * A utility class for manipulating and querying nested Map structures.
+ * Provides functionality for deep value retrieval, map flattening, and environment variable conversion.
+ * Supports handling of nested Maps and Lists with index-based access syntax (e.g., "key[0]").
+ */
 class MapUtils {
 
     /**
-     * Returns a map whose key is the given string and
-     * value is mapped from keys split by the given string.
+     * Retrieves a value from a nested Map structure using a dot-separated path string.
      *
-     * @param m a {@code Map}
-     * @param s a {@code String} set
-     * @param delimiter the delimiter for splitting keys
-     * @return the {@code Map}
+     * @param map The nested Map to search through. If null, returns null.
+     * @param path The path string specifying the traversal route (e.g., "a.b.c[0].d").
+     * @param separator The delimiter for path components (default is ".").
+     * @return The value found at the specified path, or null if any traversal step fails.
      */
-    static Map get(Map m, Set<String> s, String delimiter) {
-        Map map = [:]
-        s.each { str ->
-            Object value = get(m, str.split(Pattern.quote(delimiter)))
-            map.put(str, value)
-        }
-        return map
-    }
-
-    /**
-     * Iterates through the given keys and returns the value
-     * to which the specified keys are mapped.
-     *
-     * @param m a {@code Map}
-     * @param keys the key whose associated value is to be returned
-     * @return the value to which the specified key is mapped,
-     *         or null if this map contains no mapping for the key
-     */
-    static Object get(Map m, String... keys) {
-        return keys.inject(m) { value, key ->
-            return value instanceof Map ? value.get(key) : null
-        }
-    }
-
-    /**
-     * Merges given maps which nest with the {@code Map} or the {@code List}.
-     *
-     * @param m1 the map as the base map
-     * @param m2 the map merged into the base map
-     * @return the merged {@code Map}
-     */
-    static Map merge(Map m1, Map m2) {
-        return m2.inject((Map) m1.clone()) { map, entry ->
-            if (map[entry.key] instanceof Map && entry.value instanceof Map) {
-                map[entry.key] = merge((Map) map[entry.key], (Map) entry.value)
-            } else if (map[entry.key] instanceof List && entry.value instanceof List) {
-                // just combine elements of two lists and remove duplicate elements
-                Stream s1 = ((List) map[entry.key]).stream()
-                Stream s2 = ((List) entry.value).stream()
-                map[entry.key] = Stream.concat(s1, s2).distinct().collect(Collectors.toList())
-            } else {
-                map[entry.key] = entry.value
+    static Object getByPath(Map<String, Object> map, String path, String separator = ".") {
+        if (!map || !path) return null
+        def keys = path.split(separator)
+        keys.inject(map) { result, key ->
+            if (result == null) return null
+            def (actualKey, index) = parseKey(key)
+            switch (result) {
+                case Map:
+                    def value = result[actualKey]
+                    value = getIndexedValue(value, index)
+                    return value
+                case List:
+                    return getIndexedValue(result, index)
+                default:
+                    return null
             }
-            return map
         }
     }
 
     /**
-     * Iterates and concatenates all keys with the specified string.
+     * Converts a nested Map structure into environment variable format (KEY=VAL strings).
      *
-     * @param m a {@code Map}
-     * @param prefix the string added to the beginning of all keys
-     * @param delimiter the delimiter for concatenating keys
-     * @return the flat {@code Map}
+     * @param map The Map to convert. If null, returns an empty list.
+     * @param separator The delimiter for nested key composition (default is "_").
+     * @return A list of environment variable strings with uppercase keys (e.g., ["ROOT_A_B=value"]).
      */
-    static Map flatten(Map m, String prefix, String delimiter) {
-        Map flatMap = [:]
-        m.collectEntries { key, value ->
-            String newKey = prefix ? prefix + delimiter + key : key.toString()
+    static List<String> toEnvVars(Map<String, Object> map, String separator = "_") {
+        if (!map) return []
+        flatten(map, "", separator).collect { key, value ->
+            def envKey = StringUtils.toEnvKey(key, separator)
+            def envVal = value?.toString()
+            "${envKey}=${envVal}"
+        } as List
+    }
+
+    /**
+     * Flattens a nested Map structure into a single-level Map with compound keys.
+     *
+     * @param map The nested Map to flatten. If null, returns an empty Map.
+     * @param prefix The base prefix for key composition (used internally during recursion).
+     * @param separator The delimiter for nested key composition (default is ".").
+     * @return A flattened Map where keys represent traversal paths (e.g., "root.child[0].value").
+     */
+    static Map<String, Object> flatten(Map<String, Object> map, String prefix = "", String separator = ".") {
+        if (!map) return [:]
+        def flatMap = new HashMap<String, Object>()
+        map.each { key, value ->
+            def currentKey = prefix ? "${prefix}${separator}${key}".toString() : key
             if (value instanceof Map) {
-                flatMap.putAll(flatten(value, newKey, delimiter))
+                flatMap.putAll(flatten(value, currentKey, separator))
+            } else if (value instanceof List) {
+                value.eachWithIndex { element, index ->
+                    def listKey = "${currentKey}${separator}${index}".toString()
+                    if (element instanceof Map) {
+                        flatMap.putAll(flatten(element, listKey, separator))
+                    } else if (element instanceof List) {
+                        // Convert sublist to pseudo-map for recursive processing
+                        flatMap.putAll(flatten([(index.toString()): element], listKey, separator))
+                    } else {
+                        flatMap[listKey] = element
+                    }
+                }
             } else {
-                flatMap.put(newKey, value)
+                flatMap[currentKey] = value
             }
         }
         return flatMap
     }
 
-    /**
-     * Converts all keys to the environment variable case.
-     *
-     * @param m a {@code Map}
-     * @return the converted {@code Map}
-     */
-    static toEnvCase(Map m) {
-        return m.collectEntries { key, value ->
-            [(StringUtils.toEnvCase(key.toString())): value]
+    private static Tuple2<String, Integer> parseKey(String key) {
+        def matcher = (key =~ /^([^\[]*)\[(\d+)\]$/)
+        matcher.matches() ? [matcher.group(1), matcher.group(2) as Integer] : [key, -1]
+    }
+
+
+    private static Object getIndexedValue(Object value, int index) {
+        if (index == -1) return value
+        if (value instanceof List && index in 0..<value.size()) {
+            return value[index]
         }
+        return null
     }
 
 }

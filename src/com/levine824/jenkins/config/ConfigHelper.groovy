@@ -1,5 +1,6 @@
 package com.levine824.jenkins.config
 
+import groovy.transform.Field
 
 import java.util.regex.Matcher
 import java.util.regex.Pattern
@@ -10,17 +11,22 @@ class ConfigHelper {
     private ConfigLoader loader
 
     private Script step
-    private String stepName
 
-    private Map<String, Set> properties
+    private Map properties
 
-    ConfigHelper(ConfigLoader loader, Script step) {
+    static ConfigHelper load(Script step, String... yaml) {
+        return new ConfigHelper(step, ConfigLoader.load(yaml))
+    }
+
+    private ConfigHelper(Script step, ConfigLoader loader) {
         this.loader = loader
         this.step = step
-        this.stepName = step.getProperty('STEP_NAME')
-        this.properties = step.getProperties()
-                .findAll { it.key.toString().endsWith(STEP_PROPERTY_SUFFIX) }
-                .collectEntries { key, value -> [(key): (Set) value] }
+        step.getClass().declaredFields.each { field ->
+            if (field.getAnnotation(Field)) {
+                properties.put(field.name, field.get(this))
+            }
+        }
+
     }
 
     @Override
