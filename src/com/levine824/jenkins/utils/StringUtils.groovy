@@ -71,7 +71,7 @@ class StringUtils {
                 lastCharWasSep = true
             }
         }
-        def escapedSep = escapeRegex(separator)
+        String escapedSep = escapeRegex(separator)
         String envVar = builder.toString().toUpperCase()
         // Remove leading or trailing separators
         envVar = envVar.replaceAll(/^${escapedSep}+|${escapedSep}+$/, '')

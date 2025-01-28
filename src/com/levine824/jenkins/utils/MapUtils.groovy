@@ -17,17 +17,16 @@ class MapUtils {
      */
     static Object getByPath(Map<String, Object> map, String path, String separator = ".") {
         if (!map || !path) return null
-        def keys = path.split(separator)
-        keys.inject(map) { result, key ->
-            if (result == null) return null
+        def escapedSep = StringUtils.escapeRegex(separator)
+        def keys = path.split(escapedSep)
+        keys.inject(map) { value, key ->
+            if (value == null) return null
             def (actualKey, index) = parseKey(key)
-            switch (result) {
+            switch (value) {
                 case Map:
-                    def value = result[actualKey]
-                    value = getIndexedValue(value, index)
-                    return value
+                    return getIndexedValue(value[actualKey], index)
                 case List:
-                    return getIndexedValue(result, index)
+                    return getIndexedValue(value, index)
                 default:
                     return null
             }
@@ -66,15 +65,15 @@ class MapUtils {
             if (value instanceof Map) {
                 flatMap.putAll(flatten(value, currentKey, separator))
             } else if (value instanceof List) {
-                value.eachWithIndex { element, index ->
+                value.eachWithIndex { item, index ->
                     def listKey = "${currentKey}${separator}${index}".toString()
-                    if (element instanceof Map) {
-                        flatMap.putAll(flatten(element, listKey, separator))
-                    } else if (element instanceof List) {
+                    if (item instanceof Map) {
+                        flatMap.putAll(flatten(item, listKey, separator))
+                    } else if (item instanceof List) {
                         // Convert sublist to pseudo-map for recursive processing
-                        flatMap.putAll(flatten([(index.toString()): element], listKey, separator))
+                        flatMap.putAll(flatten([(index.toString()): item], listKey, separator))
                     } else {
-                        flatMap[listKey] = element
+                        flatMap[listKey] = item
                     }
                 }
             } else {
@@ -84,9 +83,9 @@ class MapUtils {
         return flatMap
     }
 
-    private static Tuple2<String, Integer> parseKey(String key) {
-        def matcher = (key =~ /^([^\[]*)\[(\d+)\]$/)
-        matcher.matches() ? [matcher.group(1), matcher.group(2) as Integer] : [key, -1]
+    private static Tuple2<String, Integer> parseKey(String rawKey) {
+        def matcher = (rawKey =~ /^([^\[]*)\[(\d+)\]$/)
+        matcher.matches() ? [matcher.group(1), matcher.group(2) as Integer] : [rawKey, -1]
     }
 
 

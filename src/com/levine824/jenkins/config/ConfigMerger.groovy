@@ -1,7 +1,7 @@
 package com.levine824.jenkins.config
 
 class ConfigMerger {
-    // 合并策略枚举
+
     enum MergeStrategy {
         REPLACE,    // 完全覆盖
         APPEND,     // 追加元素
@@ -10,35 +10,27 @@ class ConfigMerger {
         KEY_BASED   // 基于唯一键合并
     }
 
-    /**
-     * 主入口：合并两个 Map 结构
-     * @param baseMap 基础配置
-     * @param overrideMap 覆盖配置
-     * @return 合并后的配置
-     */
-    static Map<String, Object> mergeMaps(Map baseMap, Map overrideMap) {
-        if (!baseMap) return overrideMap ?: [:] as Map<String, Object>
-        if (!overrideMap) return baseMap ?: [:] as Map<String, Object>
-        Map<String, Object> merged = new HashMap<>(baseMap)
-        overrideMap.each { key, overrideValue ->
-            Object baseValue = merged[key]
-            // 处理策略标记（示例：key+ 表示追加）
-            def (cleanKey, strategy) = parseStrategyMark(key)
-            if (baseValue != null) {
-                merged[cleanKey] = resolveMerge(baseValue, overrideValue, strategy)
-            } else {
-                merged[cleanKey] = overrideValue
-            }
-        }
-
-        merged
+    static Map merge(Map base, Map override) {
+        return mergeMaps(base, override)
     }
 
-    /**
-     * 解析键名中的策略标记
-     * @param rawKey 原始键名
-     * @return [清理后的键名, 合并策略]
-     */
+    private static Map mergeMaps(Map<String, Object> baseMap, Map<String, Object> overrideMap) {
+        if (!baseMap) return overrideMap ?: [:]
+        if (!overrideMap) return baseMap ?: [:]
+        def mergedMap = new HashMap<String, Object>(baseMap)
+        overrideMap.each { overrideKey, overrideValue ->
+            def baseValue = mergedMap[overrideKey]
+            // 处理策略标记（示例：key+ 表示追加）
+            def (cleanKey, strategy) = parseStrategyMark(overrideKey)
+            if (baseValue != null) {
+                mergedMap[cleanKey] = mergeWithStrategy(baseValue, overrideValue, strategy)
+            } else {
+                mergedMap[cleanKey] = overrideValue
+            }
+        }
+        return mergedMap
+    }
+
     private static Tuple2<String, MergeStrategy> parseStrategyMark(String rawKey) {
         switch (rawKey) {
             case ~/(.+)\+$/: // 追加策略
@@ -47,103 +39,104 @@ class ConfigMerger {
                 return new Tuple2(rawKey[0..-2], MergeStrategy.DEEP_MERGE)
             case ~/(.+)\!$/: // 强制覆盖
                 return new Tuple2(rawKey[0..-1], MergeStrategy.REPLACE)
-            default:
-                return new Tuple2(rawKey, MergeStrategy.DEEP_MERGE) // 默认深度合并
+            default: // 默认深度合并
+                return new Tuple2(rawKey, MergeStrategy.DEEP_MERGE)
         }
     }
 
-    /**
-     * 根据数据类型选择合并方式
-     */
-    private static Object resolveMerge(Object base, Object override, MergeStrategy strategy) {
+    private static Object mergeWithStrategy(Object base, Object override, MergeStrategy strategy) {
         if (base instanceof Map && override instanceof Map) {
-            return mergeMaps((Map) base, (Map) override)
+            return mergeMaps(base, override)
         } else if (base instanceof List && override instanceof List) {
-            return mergeLists((List) base, (List) override, strategy)
+            return mergeLists(base, override, strategy)
         } else {
             // 基础类型直接使用覆盖值
             return override
         }
     }
 
-    /**
-     * 合并列表的核⼼逻辑
-     */
-    private static List<Object> mergeLists(List baseList, List overrideList, MergeStrategy strategy) {
+    private static List mergeLists(List baseList, List overrideList, MergeStrategy strategy) {
         switch (strategy) {
             case MergeStrategy.REPLACE:
                 return new ArrayList<>(overrideList)
-
             case MergeStrategy.APPEND:
                 return baseList + overrideList
-
             case MergeStrategy.UNIQUE:
                 return (baseList + overrideList).unique()
-
             case MergeStrategy.DEEP_MERGE:
                 return deepMergeLists(baseList, overrideList)
-
             case MergeStrategy.KEY_BASED:
-                return keyBasedMerge(baseList, overrideList)
-
+                return keyBasedMergeLists(baseList, overrideList, 'id')
             default:
-                throw new IllegalArgumentException("Unsupported merge strategy: $strategy")
+                throw new IllegalArgumentException("Unsupported merge strategy: ${strategy}")
         }
     }
 
-    /**
-     * 深度合并列表（递归处理嵌套结构）
-     */
     private static List<Object> deepMergeLists(List baseList, List overrideList) {
-        List<Object> merged = new ArrayList<>(baseList)
-
-        overrideList.each { overrideItem ->
-            def matched = merged.find { baseItem ->
-                if (baseItem instanceof Map && overrideItem instanceof Map) {
-                    // 简单键匹配逻辑（可根据需求扩展）
-                    baseItem.keySet() == ((Map) overrideItem).keySet()
-                } else {
-                    baseItem == overrideItem
-                }
-            }
-
-            if (matched != null) {
-                merged[merged.indexOf(matched)] = resolveMerge(matched, overrideItem, MergeStrategy.DEEP_MERGE)
+        def (baseKeyInfo, baseNoKey) = buildKeyInfo(baseList)
+        def (overrideKeyInfo, overrideNoKey) = buildKeyInfo(overrideList)
+        def mergedList = []
+        // 保留基础列表顺序并合并匹配项
+        baseList.each { element ->
+            def key = getElementKey(element)
+            if (key != null) {
+                def overrideElement = overrideKeyInfo.map.remove(key)
+                mergedList.add(overrideElement ?
+                        mergeWithStrategy(element, overrideElement, MergeStrategy.DEEP_MERGE)
+                        : element)
             } else {
-                merged.add(overrideItem)
+                mergedList.add(element)
             }
         }
-
-        merged
+        // 按原顺序添加覆盖列表剩余元素
+        overrideKeyInfo.order.each { key ->
+            if (overrideKeyInfo.map.containsKey(key)) mergedList.add(overrideKeyInfo.map[key])
+        }
+        // 追加无键元素
+        mergedList.addAll(overrideNoKey)
+        return mergedList
     }
 
-    /**
-     * 基于唯一键合并（需元素为 Map 且包含 id 字段）
-     */
-    private static List<Object> keyBasedMerge(List baseList, List overrideList) {
-        Map<Object, Object> mergedMap = [:]
-
-        // 先合并基础列表
-        baseList.each { item ->
-            if (item instanceof Map && item.containsKey('id')) {
-                mergedMap[item.id] = item
+    private static Tuple2<Map, List> buildKeyInfo(List list) {
+        def keyMap = [:]
+        def keyOrder = []
+        def noKey = []
+        list.each { element ->
+            def key = getElementKey(element)
+            if (key != null) {
+                if (!keyMap.containsKey(key)) keyOrder.add(key)
+                keyMap[key] = element
             } else {
-                mergedMap.put(UUID.randomUUID(), item) // 无 id 项无法合并
+                noKey.add(element)
             }
         }
-
-        // 合并覆盖列表
-        overrideList.each { overrideItem ->
-            if (overrideItem instanceof Map && overrideItem.containsKey('id')) {
-                def existing = mergedMap[overrideItem.id]
-                mergedMap[overrideItem.id] = existing ?
-                        mergeMaps(existing as Map, overrideItem as Map) :
-                        overrideItem
-            } else {
-                mergedMap.put(UUID.randomUUID(), overrideItem)
-            }
-        }
-
-        new ArrayList(mergedMap.values())
+        return new Tuple2([map: keyMap, order: keyOrder], noKey)
     }
+
+    private static Object getElementKey(Object element) {
+        if (element instanceof Map) {
+            def foundKey = ['id', 'name', 'key'].find { element.containsKey(it) }
+            return foundKey ? element[foundKey] : null
+        }
+    }
+
+    private static List<Object> keyBasedMergeLists(
+            List baseList, List overrideList, String uniqueKey = 'id') {
+        def mergedMap = [:]
+        baseList.each { element ->
+            def key = element instanceof Map ? element[uniqueKey] : null
+            if (key != null) mergedMap[key] = element
+        }
+        overrideList.each { element ->
+            def key = element instanceof Map ? element[uniqueKey] : null
+            if (key != null) {
+                mergedMap[key] = mergedMap.containsKey(key) ?
+                        mergeMaps((Map) mergedMap[key], (Map) element) : element
+            }
+        }
+        return (baseList + overrideList).findAll { element ->
+            element instanceof Map ? !mergedMap.containsKey(element[uniqueKey]) : true
+        } + mergedMap.values()
+    }
+
 }
