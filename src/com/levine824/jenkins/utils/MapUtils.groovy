@@ -65,15 +65,15 @@ class MapUtils {
             if (value instanceof Map) {
                 flatMap.putAll(flatten(value, currentKey, separator))
             } else if (value instanceof List) {
-                value.eachWithIndex { item, index ->
+                value.eachWithIndex { element, index ->
                     def listKey = "${currentKey}${separator}${index}".toString()
-                    if (item instanceof Map) {
-                        flatMap.putAll(flatten(item, listKey, separator))
-                    } else if (item instanceof List) {
+                    if (element instanceof Map) {
+                        flatMap.putAll(flatten(element, listKey, separator))
+                    } else if (element instanceof List) {
                         // Convert sublist to pseudo-map for recursive processing
-                        flatMap.putAll(flatten([(index.toString()): item], listKey, separator))
+                        flatMap.putAll(flatten([(index.toString()): element], listKey, separator))
                     } else {
-                        flatMap[listKey] = item
+                        flatMap[listKey] = element
                     }
                 }
             } else {
