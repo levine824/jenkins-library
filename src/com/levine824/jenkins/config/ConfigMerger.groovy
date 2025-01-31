@@ -2,140 +2,178 @@ package com.levine824.jenkins.config
 
 class ConfigMerger {
 
-    enum Strategy {
-        REPLACE,     // 完全覆盖
-        APPEND,      // 追加元素
-        UNIQUE,      // 去重追加
-        DEEP_MERGE,  // 深度合并
-        KEY_BASED    // 基于键合并
+    /**
+     * Merge strategy enumeration:
+     * - REPLACE: Completely override base value
+     * - APPEND: Concatenate list elements
+     * - UNIQUE: Merge lists with duplicate removal
+     * - DEEP_MERGE: Recursively merge nested structures
+     * - KEY_BASED: Merge using element's 'key' property
+     */
+    enum MergeStrategy {
+        REPLACE,
+        APPEND,
+        UNIQUE,
+        DEEP_MERGE,
+        KEY_BASED
     }
 
+    /**
+     * Merges two configuration maps
+     * @param baseConfig Base configuration map
+     * @param overrideConfig Override map with strategy markers
+     * @return New merged configuration map
+     */
     static Map<String, Object> merge(
-            Map<String, Object> baseMap, Map<String, Object> overrideMap) {
-        return mergeMaps(baseMap, overrideMap)
+            Map<String, Object> baseConfig, Map<String, Object> overrideConfig) {
+        return mergeNestedMaps(baseConfig ?: [:], overrideConfig ?: [:])
     }
 
-    private static Map<String, Object> mergeMaps(
+    private static Map<String, Object> mergeNestedMaps(
             Map<String, Object> baseMap, Map<String, Object> overrideMap) {
-        if (!baseMap) return overrideMap
-        if (!overrideMap) return baseMap
-        def mergedMap = new HashMap<String, Object>(baseMap)
+        def mergedResult = new HashMap<String, Object>(baseMap)
         overrideMap.each { rawKey, overrideValue ->
-            def (cleanKey, strategy) = parseKey(rawKey)
-            def baseValue = mergedMap[cleanKey]
-            mergedMap[cleanKey] = baseValue != null
-                    ? mergeWithStrategy(baseValue, overrideValue, strategy)
+            def (cleanKey, strategy) = parseStrategyMarker(rawKey.toString())
+            def baseValue = mergedResult[cleanKey]
+            mergedResult[cleanKey] = baseValue != null
+                    ? applyMergeStrategy(baseValue, overrideValue, strategy)
                     : overrideValue
         }
-        return mergedMap
+        return mergedResult
     }
 
-    private static Tuple2<String, Strategy> parseKey(String rawKey) {
-        def matcher = rawKey =~ /^(.*?)([+^!])$/
-        if (matcher.matches()) {
-            String cleanKey = matcher.group(1)
-            String mark = matcher.group(2)
-            def strategy = switch (mark) {
-                case '!' -> Strategy.REPLACE
-                case '+' -> Strategy.APPEND
-                case '*' -> Strategy.UNIQUE
-                case '^' -> Strategy.DEEP_MERGE
-                case '~' -> Strategy.KEY_BASED
-                default -> throw new IllegalArgumentException("Unknown strategy mark: ${mark}")
+    /**
+     * Extracts strategy marker from key
+     * @param rawKey Original key with optional strategy suffix
+     * @return Tuple containing cleaned key and detected strategy
+     * @throws IllegalArgumentException For unknown strategy markers
+     */
+    private static Tuple2<String, MergeStrategy> parseStrategyMarker(String rawKey) {
+        def markerMatcher = rawKey =~ /^(.*?)([!+*^~])$/
+        if (markerMatcher.matches()) {
+            String baseKey = markerMatcher.group(1)
+            String marker = markerMatcher.group(2)
+            def strategy = switch (marker) {
+                case '!' -> MergeStrategy.REPLACE
+                case '+' -> MergeStrategy.APPEND
+                case '*' -> MergeStrategy.UNIQUE
+                case '^' -> MergeStrategy.DEEP_MERGE
+                case '~' -> MergeStrategy.KEY_BASED
+                default -> throw new IllegalArgumentException("Unknown strategy marker: ${marker}")
             }
-            return new Tuple2(cleanKey, strategy)
+            return new Tuple2(baseKey, strategy)
         }
-        return new Tuple2(rawKey, Strategy.DEEP_MERGE) // 默认深度合并
+        return new Tuple2(rawKey, MergeStrategy.DEEP_MERGE)
     }
 
-    private static Object mergeWithStrategy(
-            Object base, Object override, Strategy strategy) {
-        if (base instanceof Map && override instanceof Map) {
-            return mergeMaps(base, override)
-        } else if (base instanceof List && override instanceof List) {
-            return mergeLists(base, override, strategy)
+    /**
+     * Applies merge strategy to values
+     * @throws IllegalArgumentException When list strategies applied to non-list types
+     */
+    private static Object applyMergeStrategy(
+            Object baseValue, Object overrideValue, MergeStrategy strategy) {
+        if (baseValue instanceof Map && overrideValue instanceof Map) {
+            return mergeNestedMaps((Map) baseValue, (Map) overrideValue)
         }
-        return override
+
+        if (baseValue instanceof List && overrideValue instanceof List) {
+            return mergeListStrategies((List) baseValue, (List) overrideValue, strategy)
+        }
+
+        if (strategy in [MergeStrategy.APPEND, MergeStrategy.UNIQUE, MergeStrategy.KEY_BASED]) {
+            throw new IllegalArgumentException("Strategy '${strategy}' requires both values to be lists")
+        }
+        return overrideValue
     }
 
-    private static List<Object> mergeLists(
-            List<Object> base, List<Object> override, Strategy strategy) {
+    private static List<Object> mergeListStrategies(
+            List<Object> baseList, List<Object> overrideList, MergeStrategy strategy) {
         switch (strategy) {
-            case Strategy.REPLACE:
-                return new ArrayList<>(override)
-            case Strategy.APPEND:
-                return base + override
-            case Strategy.UNIQUE:
-                return (base + override).unique()
-            case Strategy.DEEP_MERGE:
-                return deepMergeLists(base, override)
-            case Strategy.KEY_BASED:
-                return keyBasedMergeLists(base, override)
+            case MergeStrategy.REPLACE:
+                return handleListReplacement(overrideList)
+            case MergeStrategy.APPEND:
+                return concatenateLists(baseList, overrideList)
+            case MergeStrategy.UNIQUE:
+                return mergeUniqueLists(baseList, overrideList)
+            case MergeStrategy.DEEP_MERGE:
+                return deepMergeNestedLists(baseList, overrideList)
+            case MergeStrategy.KEY_BASED:
+                return mergeKeyedLists(baseList, overrideList)
             default:
-                throw new IllegalArgumentException("Unsupported strategy: ${strategy}")
+                throw new UnsupportedOperationException("Unsupported strategy: ${strategy}")
         }
     }
 
-    private static List<Object> deepMergeLists(List<Object> base, List<Object> override) {
-        List<Object> merged = new ArrayList<>(Math.max(base.size(), override.size()))
-        int maxSize = Math.max(base.size(), override.size())
-
-        (0..<maxSize).each { index ->
-            def baseElement = index < base.size() ? base[index] : null
-            def overrideElement = index < override.size() ? override[index] : null
-
-            merged.add(mergeElements(baseElement, overrideElement))
-        }
-        return merged
+    private static List<Object> handleListReplacement(List<Object> overrideList) {
+        return new ArrayList<>(overrideList)
     }
 
-    private static Object mergeElements(Object baseElement, Object overrideElement) {
-        if (baseElement == null) return overrideElement
+    private static List<Object> concatenateLists(List<Object> baseList, List<Object> overrideList) {
+        return baseList + overrideList
+    }
+
+    private static List<Object> mergeUniqueLists(List<Object> baseList, List<Object> overrideList) {
+        LinkedHashSet<Object> uniqueElements = new LinkedHashSet<>(baseList.size() + overrideList.size())
+        List<Object> result = new ArrayList<>()
+        (baseList + overrideList).each {
+            if (uniqueElements.add(it)) result.add(it)
+        }
+        return result
+    }
+
+    private static List<Object> deepMergeNestedLists(List<Object> baseList, List<Object> overrideList) {
+        List<Object> mergedList = new ArrayList<>(Math.max(baseList.size(), overrideList.size()))
+        int maxLength = Math.max(baseList.size(), overrideList.size())
+        (0..<maxLength).each { index ->
+            mergedList.add(mergeElementsByIndex(
+                    index < baseList.size() ? baseList[index] : null,
+                    index < overrideList.size() ? overrideList[index] : null
+            ))
+        }
+        return mergedList
+    }
+
+    private static Object mergeElementsByIndex(Object baseElement, Object overrideElement) {
         if (overrideElement == null) return baseElement
+        if (baseElement == null) return overrideElement
 
         if (baseElement instanceof Map && overrideElement instanceof Map) {
-            return mergeMaps((Map) baseElement, (Map) overrideElement)
-        } else if (baseElement instanceof List && overrideElement instanceof List) {
-            return deepMergeLists((List) baseElement, (List) overrideElement)
+            return mergeNestedMaps((Map) baseElement, (Map) overrideElement)
+        }
+        if (baseElement instanceof List && overrideElement instanceof List) {
+            return deepMergeNestedLists((List) baseElement, (List) overrideElement)
         }
         return overrideElement
     }
 
-    private static List<Object> keyBasedMergeLists(List<Object> base, List<Object> override) {
-        def mergedMap = new LinkedHashMap<Object, Object>()
-
-        processKeyedList(base, mergedMap, "base")
-        processKeyedList(override, mergedMap, "override")
-
-        return new ArrayList<>(mergedMap.values())
+    private static List<Object> mergeKeyedLists(List<Object> baseList, List<Object> overrideList) {
+        Map<Object, Object> keyedElements = new LinkedHashMap<>()
+        populateKeyedElements(baseList, keyedElements)
+        populateKeyedElements(overrideList, keyedElements)
+        return new ArrayList<>(keyedElements.values())
     }
 
-    private static void processKeyedList(List<Object> list, Map<Object, Object> mergedMap, String listType) {
-        list.eachWithIndex { element, index ->
-            validateKeyedElement(element, index, listType)
-
+    private static void populateKeyedElements(List<Object> elementList, Map<Object, Object> targetMap) {
+        elementList.eachWithIndex { element, index ->
+            validateKeyedElementStructure(element, index)
             Map<String, Object> mapElement = (Map) element
-            def key = mapElement.key
-
-            mergedMap[key] = mergedMap.containsKey(key) ?
-                    mergeMaps(mergedMap[key], mapElement) :
-                    mapElement
+            Object elementKey = mapElement['key']
+            targetMap[elementKey] = targetMap.containsKey(elementKey)
+                    ? mergeNestedMaps(targetMap[elementKey], mapElement)
+                    : mapElement
         }
     }
 
-    private static void validateKeyedElement(Object element, int index, String listType) {
+    private static void validateKeyedElementStructure(Object element, int index) {
         if (!(element instanceof Map)) {
             throw new IllegalArgumentException(
-                    "Invalid element in $listType list at index $index: " +
-                            "Expected Map but got ${element?.getClass()?.simpleName}"
+                    "Element at index ${index} must be Map, found: ${element?.getClass()?.simpleName}"
             )
         }
-
         if (!((Map) element).containsKey('key')) {
             throw new IllegalArgumentException(
-                    "Missing 'key' in $listType list element at index $index: $element"
+                    "Element at index ${index} missing required 'key' field: ${element}"
             )
         }
     }
-
 }
