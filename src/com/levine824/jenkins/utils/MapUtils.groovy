@@ -6,7 +6,6 @@ package com.levine824.jenkins.utils
  * Supports handling of nested Maps and Lists with index-based access syntax (e.g., "key[0]").
  */
 class MapUtils {
-
     /**
      * Retrieves a value from a nested Map structure using a dot-separated path string.
      *
@@ -96,5 +95,4 @@ class MapUtils {
         }
         return null
     }
-
 }

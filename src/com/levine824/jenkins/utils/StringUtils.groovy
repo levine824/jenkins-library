@@ -11,7 +11,6 @@ import java.util.regex.Pattern
  * @since 1.0
  */
 class StringUtils {
-
     /**
      * Escapes a string for literal use in regular expressions
      * <p>
@@ -79,5 +78,4 @@ class StringUtils {
         envVar = envVar.replaceAll(/${escapedSep}+/, separator)
         return envVar
     }
-
 }
