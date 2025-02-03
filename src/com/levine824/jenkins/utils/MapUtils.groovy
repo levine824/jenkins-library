@@ -20,12 +20,12 @@ class MapUtils {
         def keys = path.split(escapedSep)
         keys.inject(map) { value, key ->
             if (value == null) return null
-            def (actualKey, index) = parseKey(key)
+            def (actualKey, index) = parseKeyWithIndex(key)
             switch (value) {
                 case Map:
-                    return getIndexedValue(value[actualKey], index)
+                    return getByIndex(value[actualKey], index)
                 case List:
-                    return getIndexedValue(value, index)
+                    return getByIndex(value, index)
                 default:
                     return null
             }
@@ -44,7 +44,7 @@ class MapUtils {
         flatten(map, "", separator).collect { key, value ->
             def envKey = StringUtils.toEnvKey(key, separator)
             def envVal = value?.toString()
-            "${envKey}=${envVal}"
+            "${envKey}=${envVal}".toString()
         } as List
     }
 
@@ -63,7 +63,7 @@ class MapUtils {
             def currentKey = prefix ? "${prefix}${separator}${key}".toString() : key
             if (value instanceof Map) {
                 flatMap.putAll(flatten(value, currentKey, separator))
-            } else if (value instanceof List) {
+            } else if (value instanceof List) { // TODO: need to flat List? or just keep original
                 value.eachWithIndex { element, index ->
                     def listKey = "${currentKey}${separator}${index}".toString()
                     if (element instanceof Map) {
@@ -82,13 +82,13 @@ class MapUtils {
         return flatMap
     }
 
-    private static Tuple2<String, Integer> parseKey(String rawKey) {
+    private static Tuple2<String, Integer> parseKeyWithIndex(String rawKey) {
         def matcher = (rawKey =~ /^([^\[]*)\[(\d+)\]$/)
         matcher.matches() ? [matcher.group(1), matcher.group(2) as Integer] : [rawKey, -1]
     }
 
 
-    private static Object getIndexedValue(Object value, int index) {
+    private static Object getByIndex(Object value, int index) {
         if (index == -1) return value
         if (value instanceof List && index in 0..<value.size()) {
             return value[index]
