@@ -7,25 +7,39 @@ package com.levine824.jenkins.utils
  */
 class MapUtils {
     /**
-     * Retrieves a value from a nested Map structure using a dot-separated path string.
+     * Retrieves a nested value from a Map structure using a path string with a specified separator.
+     * Supports accessing list elements via bracket notation (e.g., "key[1]").
      *
-     * @param map The nested Map to search through. If null, returns null.
-     * @param path The path string specifying the traversal route (e.g., "a.b.c[0].d").
-     * @param separator The delimiter for path components (default is ".").
-     * @return The value found at the specified path, or null if any traversal step fails.
+     * @param map The source Map containing nested data
+     * @param path Dot-separated path string (e.g., "user.address[0].street")
+     * @param separator Optional path separator (default: ".")
+     * @return The found value or null if any level doesn't exist
      */
-    static Object getByPath(Map<String, Object> map, String path, String separator = ".") {
+    static Object getNestedValue(Map<String, Object> map, String path, String separator = ".") {
         if (!map || !path) return null
         def escapedSep = StringUtils.escapeRegex(separator)
         def keys = path.split(escapedSep)
-        keys.inject(map) { value, key ->
+        return getNestedValue(map, keys)
+    }
+
+    /**
+     * Retrieves a nested value from a Map structure using direct key sequence.
+     * Handles both Map and List structures during traversal.
+     *
+     * @param map The source Map containing nested data
+     * @param keys Sequence of keys to traverse (may contain array indices)
+     * @return The found value or null if any level doesn't exist
+     */
+    static Object getNestedValue(Map<String, Object> map, String... keys) {
+        if (!map || !keys) return null
+        return keys.inject(map) { value, key ->
             if (value == null) return null
             def (actualKey, index) = parseKeyWithIndex(key)
             switch (value) {
                 case Map:
-                    return getByIndex(value[actualKey], index)
+                    return resolveIndexedValue(value[actualKey], index)
                 case List:
-                    return getByIndex(value, index)
+                    return resolveIndexedValue(value, index)
                 default:
                     return null
             }
@@ -41,11 +55,11 @@ class MapUtils {
      */
     static List<String> toEnvVars(Map<String, Object> map, String separator = "_") {
         if (!map) return []
-        flatten(map, "", separator).collect { key, value ->
+        return flatten(map, "", separator).collect { key, value ->
             def envKey = StringUtils.toEnvKey(key, separator)
             def envVal = value?.toString()
             "${envKey}=${envVal}".toString()
-        } as List
+        }
     }
 
     /**
@@ -58,7 +72,7 @@ class MapUtils {
      */
     static Map<String, Object> flatten(Map<String, Object> map, String prefix = "", String separator = ".") {
         if (!map) return [:]
-        def flatMap = new HashMap<String, Object>()
+        Map<String, Object> flatMap = new HashMap<String, Object>()
         map.each { key, value ->
             def currentKey = prefix ? "${prefix}${separator}${key}".toString() : key
             if (value instanceof Map) {
@@ -84,11 +98,13 @@ class MapUtils {
 
     private static Tuple2<String, Integer> parseKeyWithIndex(String rawKey) {
         def matcher = (rawKey =~ /^([^\[]*)\[(\d+)\]$/)
-        matcher.matches() ? [matcher.group(1), matcher.group(2) as Integer] : [rawKey, -1]
+        return matcher.matches()
+                ? [matcher.group(1), matcher.group(2) as Integer]
+                : [rawKey, -1]
     }
 
 
-    private static Object getByIndex(Object value, int index) {
+    private static Object resolveIndexedValue(Object value, int index) {
         if (index == -1) return value
         if (value instanceof List && index in 0..<value.size()) {
             return value[index]
