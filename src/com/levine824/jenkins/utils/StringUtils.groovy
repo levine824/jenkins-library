@@ -3,46 +3,42 @@ package com.levine824.jenkins.utils
 import java.util.regex.Pattern
 
 /**
- * Provides utility methods for common string manipulations,
- * including regex escaping and environment variable key formatting.
- * <p>
- * This class contains static utility methods and should not be instantiated.
- *
- * @since 1.0
+ * A utility class providing static methods for common string manipulations,
+ * particularly focused on escaping regular expressions and converting strings
+ * into environment variable key formats.
  */
 class StringUtils {
+
     /**
-     * Escapes a string for literal use in regular expressions
-     * <p>
-     * Uses {@link java.util.regex.Pattern#quote(String)} to ensure the string is treated as a literal,
-     * preventing special characters from being interpreted as regex metacharacters.
+     * Escapes a regular expression string to be treated as a literal pattern.
+     * This ensures special characters in the regex are interpreted literally.
      *
-     * @param str The input string to escape (nullable or empty)
-     * @return The regex-escaped literal string, or null if input is null/empty
+     * @param str The input regular expression to escape. If null or empty, returns null.
+     * @return The escaped regex as a literal pattern, or null if input is null/empty.
      * @see java.util.regex.Pattern#quote(String)
      */
-    static String escapeRegex(String str) {
+    static String escape(String str) {
         if (!str) return null
         return Pattern.quote(str)
     }
 
     /**
-     * Converts a string to environment variable key format (uppercase with separator)
-     * <p>
-     * Conversion rules:
-     * <ul>
-     *   <li>Insert separator before camel-case uppercase letters (e.g., "myVar" → "MY_VAR")</li>
-     *   <li>Replace non-alphanumeric characters with separator</li>
-     *   <li>Collapse consecutive non-alphanumerics to single separator</li>
-     *   <li>Remove leading/trailing separators</li>
-     *   <li>Convert result to uppercase</li>
-     * </ul>
-     * Example: "my.config.key" → "MY_CONFIG_KEY" (with default "_" separator)
+     * Converts a string to a standardized environment variable key format:
+     * - Converts camelCase to UPPER_CASE_WITH_SEPARATOR
+     * - Replaces non-alphanumeric characters with the specified separator
+     * - Removes leading/trailing separators and collapses consecutive separators
+     * - Output is always uppercase
      *
-     * @param str The input string (nullable or empty returns original value)
-     * @param separator The separator character (non-null/non-empty), typically "_"
-     * @return Formatted environment variable key string, or original value if input is null/empty
-     * @throws IllegalArgumentException if separator is null or empty
+     * @param str The input string to convert. Returns null if input is null.
+     * @param separator The separator used to replace special characters and camelCase.
+     *                  Defaults to "_". Cannot be null/empty.
+     * @return The formatted environment variable key, or original value for null/empty input.
+     * @throws IllegalArgumentException if separator is null or empty.
+     *
+     * @example
+     * toEnvKey("myApp.config") → "MYAPP_CONFIG"
+     * toEnvKey("myApp.config", "-") → "MYAPP-CONFIG"
+     * toEnvKey("MyHTTPResponse", "_") → "MY_HTTP_RESPONSE"
      */
     static String toEnvKey(String str, String separator = "_") {
         if (str == null || str.isEmpty()) {
@@ -51,27 +47,27 @@ class StringUtils {
         if (separator == null || separator.isEmpty()) {
             throw new IllegalArgumentException("Separator cannot be null or empty")
         }
-        StringBuilder builder = new StringBuilder()
+        StringBuilder sb = new StringBuilder()
         // Track if the last character added was a separator
         boolean lastCharWasSep = false
         for (int i = 0; i < str.length(); i++) {
             char currentChar = str.charAt(i)
             if (Character.isUpperCase(currentChar)) { // Handle uppercase letters (camel case)
                 if (i > 0 && !Character.isUpperCase(str.charAt(i - 1))) {
-                    builder.append(separator)
+                    sb.append(separator)
                     lastCharWasSep = true
                 }
-                builder.append(Character.toLowerCase(currentChar))
+                sb.append(Character.toLowerCase(currentChar))
             } else if (Character.isLetterOrDigit(currentChar)) { // Handle lowercase letters or digits
-                builder.append(currentChar)
+                sb.append(currentChar)
                 lastCharWasSep = false
             } else if (!lastCharWasSep) { // Handle other characters (e.g., dots, spaces)
-                builder.append(separator)
+                sb.append(separator)
                 lastCharWasSep = true
             }
         }
-        String escapedSep = escapeRegex(separator)
-        String envVar = builder.toString().toUpperCase()
+        String escapedSep = escape(separator)
+        String envVar = sb.toString().toUpperCase()
         // Remove leading or trailing separators
         envVar = envVar.replaceAll(/^${escapedSep}+|${escapedSep}+$/, '')
         // Remove consecutive separators
