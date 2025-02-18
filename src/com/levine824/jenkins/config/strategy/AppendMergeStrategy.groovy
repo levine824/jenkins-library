@@ -5,20 +5,20 @@ import com.levine824.jenkins.config.merger.MergeStrategy
 class AppendMergeStrategy implements MergeStrategy {
 
     @Override
-    Object merge(Object baseConfig, Object customConfig) {
-        if (baseConfig) return customConfig
-        if (customConfig) return baseConfig
-        if (baseConfig instanceof Map && customConfig instanceof Map) {
-            return baseConfig + customConfig
-        } else if (baseConfig instanceof List && customConfig instanceof List) {
-            return baseConfig + customConfig
+    Object merge(Object base, Object custom) {
+        if (base == null) return custom
+        if (custom == null) return base
+        if (base instanceof Map && custom instanceof Map) {
+            return base + custom
+        } else if (base instanceof List && custom instanceof List) {
+            return base + custom
         }
-        if (baseConfig.getClass() != customConfig.getClass()) {
+        if (base.getClass() != custom.getClass()) {
             throw new IllegalArgumentException("Cannot merge different types: " +
-                    "${baseConfig.getClass().simpleName} and " +
-                    "${customConfig.getClass().simpleName}")
+                    "${base.getClass().simpleName} and " +
+                    "${custom.getClass().simpleName}")
         }
-        return customConfig
+        return custom
     }
 
     @Override
