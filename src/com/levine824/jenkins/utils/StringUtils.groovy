@@ -28,11 +28,11 @@ class StringUtils {
                 lastCharWasSep = true
             }
         }
-        String escapeSep = Pattern.quote(separator)
+        String escapedSep = Pattern.quote(separator)
         String envVar = sb.toString().toUpperCase()
         // Remove leading or trailing separators
-        envVar = envVar.replaceAll(/^${escapeSep}+|${escapeSep}+$/, '')
+        envVar = envVar.replaceAll(/^${escapedSep}+|${escapedSep}+$/, '')
         // Remove consecutive separators
-        envVar.replaceAll(/${escapeSep}+/, separator)
+        envVar.replaceAll(/${escapedSep}+/, separator)
     }
 }

@@ -15,27 +15,27 @@ class MapUtils {
     }
 
     static Map flatten(Object o, String prefix = '', String separator = '.') {
-        Map flatMap = [:]
+        Map flat = [:]
         if (o instanceof Map) {
             o.each { key, value ->
                 String currentKey = prefix ? "${prefix}${separator}${key}" : key.toString()
-                flatMap.putAll(flatten(value, currentKey, separator))
+                flat.putAll(flatten(value, currentKey, separator))
             }
         } else if (o instanceof List) {
             o.eachWithIndex { element, index ->
                 String currentKey = prefix ? "${prefix}[${index}]" : "[${index}]"
-                flatMap.putAll(flatten(element, currentKey, separator))
+                flat.putAll(flatten(element, currentKey, separator))
             }
         } else if (prefix) {
-            flatMap[prefix] = o
+            flat[prefix] = o
         }
-        return flatMap
+        return flat
     }
 
     static Object getByPath(Map m, String path, String separator = '.') {
         if (!m || !path) return null
-        String escapeSep = Pattern.quote(separator)
-        String[] keys = path.split(escapeSep)
+        String escapedSep = Pattern.quote(separator)
+        String[] keys = path.split(escapedSep)
         getByKeys(m, keys)
     }
 
