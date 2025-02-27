@@ -26,16 +26,26 @@ class ConfigHelper implements Serializable {
         }
     }
 
-    Map load(){
-        
+    Map parse() {
+        Pattern pattern = ~/(\w+)_CONFIG_PATHS/
+        Map merged = stepConfig()
+        fields.keySet().each {
+            Matcher matcher = it =~ pattern
+            if (matcher.matches()) {
+                String type = matcher.group(1).replaceAll('_CONFIG_PATHS', '').toLowerCase()
+                Set<String> paths = fields[type] as Set
+                merged.putAll("${type}Config"(paths) as Map)
+            }
+        }
+        return merged
     }
 
     Object generalConfig(Set<String> paths = []) {
         getConfig('general', '', paths)
     }
 
-    Map stageConfig(String stageName = step.env.STAGE_NAME, Set<String> paths = []) {
-        getConfig('stage', stageName, paths) as Map
+    Map stageConfig(Set<String> paths = []) {
+        getConfig('stage', step.env.STAGE_NAME as String, paths) as Map
     }
 
     Map stepConfig(Set<String> paths = []) {
