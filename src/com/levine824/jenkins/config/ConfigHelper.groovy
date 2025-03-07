@@ -32,9 +32,9 @@ class ConfigHelper implements Serializable {
         fields.each { key, value ->
             Matcher matcher = key =~ CONFIG_PATHS_PATTERN
             if (matcher.matches()) {
-                String raw = matcher.group(1)
-                String type = raw.toLowerCase()
-                String name = fields["${raw}_NAME"] ?: step.env."${raw}_NAME"
+                String rawType = matcher.group(1)
+                String type = rawType.toLowerCase()
+                String name = fields["${rawType}_NAME"] ?: step.env."${rawType}_NAME" ?: null
                 merged.putAll(getConfigByPath(type, name, value as Set))
             }
         }
@@ -43,9 +43,9 @@ class ConfigHelper implements Serializable {
 
     Map getConfigByPath(String type, String name, Set<String> paths) {
         Map merged = [:]
-        Map raw = getConfig(type, name) as Map
-        paths.each {
-            merged.put(it, MapUtils.getByPath(raw, it))
+        Map config = getConfig(type, name) as Map
+        paths.each { path ->
+            merged.put(path, MapUtils.getByPath(config, path))
         }
         return merged
     }
@@ -58,10 +58,10 @@ class ConfigHelper implements Serializable {
 
     private Map getFields() {
         Map fields = [:]
-        step.getClass().getDeclaredFields().each {
-            if (!it.synthetic && it.declaringClass == step.class) {
-                it.setAccessible(true)
-                fields.put(it.name, it.get(step))
+        step.getClass().getDeclaredFields().each { field ->
+            if (!field.synthetic && field.declaringClass == step.class) {
+                field.setAccessible(true)
+                fields.put(field.name, field.get(step))
             }
         }
         return fields

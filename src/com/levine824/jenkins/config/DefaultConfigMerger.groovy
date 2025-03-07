@@ -1,30 +1,30 @@
 package com.levine824.jenkins.config
 
 class DefaultConfigMerger implements ConfigMerger {
-    static final String STRATEGY_MARKER = "@merge"
-    static final String STRATEGY_REPLACE = "replace"
-    static final String STRATEGY_APPEND = "append"
-    static final String STRATEGY_UNIQUE = "unique"
-    static final String STRATEGY_DEEP = "deep"
-    static final String STRATEGY_KEY_BASED = "keyBased"
+    static final String STRATEGY_MARKER = '@merge'
+    static final String STRATEGY_REPLACE = 'replace'
+    static final String STRATEGY_APPEND = 'append'
+    static final String STRATEGY_UNIQUE = 'unique'
+    static final String STRATEGY_DEEP = 'deep'
+    static final String STRATEGY_KEY_BASED = 'keyBased'
 
     String defaultStrategy = STRATEGY_DEEP
-    List<String> uniqueKeys = ["id", "name"]
+    List<String> uniqueKeys = ['id', 'name']
 
-    Object merge(Object baseConfig, Object customConfig) {
-        if (baseConfig == null) return customConfig
-        if (customConfig == null) return baseConfig
-        if (baseConfig instanceof Map && customConfig instanceof Map) {
-            return mergeMap(baseConfig, customConfig)
-        } else if (baseConfig instanceof List && customConfig instanceof List) {
-            return mergeList(baseConfig, customConfig)
+    Object merge(Object base, Object custom) {
+        if (base == null) return custom
+        if (custom == null) return base
+        if (base instanceof Map && custom instanceof Map) {
+            return mergeMap(base, custom)
+        } else if (base instanceof List && custom instanceof List) {
+            return mergeList(base, custom)
         }
-        if (baseConfig.getClass() != customConfig.getClass()) {
-            throw new IllegalArgumentException("Cannot merge different types: " +
-                    "${baseConfig.getClass().simpleName} and " +
-                    "${customConfig.getClass().simpleName}")
+        if (base.getClass() != custom.getClass()) {
+            throw new IllegalArgumentException('Cannot merge different types: ' +
+                    "${base.getClass().simpleName} and " +
+                    "${custom.getClass().simpleName}")
         }
-        return customConfig
+        return custom
     }
 
     private Map mergeMap(Map base, Map custom) {
@@ -42,14 +42,14 @@ class DefaultConfigMerger implements ConfigMerger {
             it instanceof Map && it.containsKey(STRATEGY_MARKER)
         }
         if (strategies.size() > 1) {
-            throw new IllegalArgumentException("Multiple strategy markers found in list")
+            throw new IllegalArgumentException('Multiple strategy markers found in list')
         }
         String strategy = strategies
                 ? strategies.last()[STRATEGY_MARKER]
                 : defaultStrategy
-        List filtered = custom + []
-        filtered.removeAll(strategies)
-        return mergeList(base, filtered, strategy)
+        List cleanedCustom = custom + []
+        cleanedCustom.removeAll(strategies)
+        return mergeList(base, cleanedCustom, strategy)
     }
 
     private List mergeList(List base, List custom, String strategy) {
@@ -79,27 +79,26 @@ class DefaultConfigMerger implements ConfigMerger {
 
     private List keyBasedMerge(List base, List custom, Closure handler) {
         List merged = base + []
-        custom.each { ce ->
-            String key = findKey(ce)
+        custom.each { customElement ->
+            String uniqueKey = findUniqueKey(customElement)
             int index = -1
-            if (key) {
+            if (uniqueKey) {
                 index = base.findIndexOf {
-                    it instanceof Map && ce[key] == it[key]
+                    it instanceof Map && customElement[uniqueKey] == it[uniqueKey]
                 }
             }
             if (index >= 0) {
-                Object be = base[index]
-                merged[index] = handler.call(be, ce)
+                merged[index] = handler.call(base[index], customElement)
             } else {
-                merged << ce
+                merged << customElement
             }
         }
         return merged
     }
 
-    private String findKey(Object o) {
+    private String findUniqueKey(Object o) {
         return o instanceof Map
-                ? uniqueKeys.find { o.containsKey(it) }
+                ? uniqueKeys.find { uniqueKey -> o.containsKey(uniqueKey) }
                 : null
     }
 }

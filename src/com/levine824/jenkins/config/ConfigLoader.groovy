@@ -3,7 +3,6 @@ package com.levine824.jenkins.config
 import org.yaml.snakeyaml.Yaml
 
 class ConfigLoader {
-    private Map config = [:]
     private ConfigMerger merger
 
     ConfigLoader(ConfigMerger merger = new DefaultConfigMerger()) {
@@ -11,19 +10,19 @@ class ConfigLoader {
     }
 
     Map load(List<String> contents) {
-        Yaml parser = new Yaml()
-        contents.each { load(it, parser) }
+        Map config = [:]
+        contents?.each { content ->
+            config = merger.merge(config, load(content)) as Map
+        }
         return config
     }
 
-    Map load(String content, Yaml parser = new Yaml()) {
-        Map customConfig
+    static Map load(String content) {
         try {
-            customConfig = parser.load(content)
+            Yaml parser = new Yaml()
+            return parser.load(content)
         } catch (Exception e) {
-            throw new Exception("Failed to load configuration", e)
+            throw new Exception("Failed to load YAML: ${e.message}", e)
         }
-        config = merger.merge(config, customConfig) as Map
-        return config
     }
 }

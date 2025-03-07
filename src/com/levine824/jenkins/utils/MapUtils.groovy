@@ -4,91 +4,66 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 class MapUtils {
+    private static final Pattern KEY_WITH_INDEX_PATTERN = ~/^([a-zA-Z_]\w*)?((?:\[\d+\])*)$/
+    private static final Pattern INDEX_PATTERN = ~/\d+/
 
-    static List toEnvVars(Map m, String separator = '_') {
-        if (!m) return null
-        flatten(m, '', separator).collect { key, value ->
-            String envKey = StringUtils.toEnvKey(key.toString(), separator)
-            String envVal = value?.toString()
-            "${envKey}=${envVal}".toString()
-        }
-    }
-
-    static Map flatten(Object o, String prefix = '', String separator = '.') {
+    static Map flatten(Object obj, String prefix = '',
+                       String separator = '.', boolean indexList = false) {
         Map flat = [:]
-        if (o instanceof Map) {
-            o.each { key, value ->
-                String currentKey = prefix ? "${prefix}${separator}${key}" : key.toString()
-                flat.putAll(flatten(value, currentKey, separator))
+        if (obj instanceof Map) {
+            obj.each { key, value ->
+                String newKey = prefix
+                        ? "${prefix}${separator}${key}"
+                        : key?.toString()
+                flat.putAll(flatten(value, newKey, separator))
             }
-        } else if (o instanceof List) {
-            o.eachWithIndex { element, index ->
-                String currentKey = prefix ? "${prefix}[${index}]" : "[${index}]"
-                flat.putAll(flatten(element, currentKey, separator))
+        } else if (obj instanceof List) {
+            if (indexList) {
+                obj.eachWithIndex { element, index ->
+                    String newKey = prefix
+                            ? "${prefix}[${index}]"
+                            : index?.toString()
+                    flat.putAll(flatten(element, newKey, separator, indexList))
+                }
+            } else {
+                flat[prefix] = obj
             }
         } else if (prefix) {
-            flat[prefix] = o
+            flat[prefix] = obj
         }
+
         return flat
     }
 
-    static Object getByPath(Map m, String path, String separator = '.') {
-        if (!m || !path) return null
+    static Object getByPath(Map map, String path, String separator = '.') {
+        if (!map || !path) return null
         String escapedSep = Pattern.quote(separator)
         String[] keys = path.split(escapedSep)
-        getByKeys(m, keys)
+        getByKeys(map, keys)
     }
 
-    static Object getByKeys(Map m, String... keys) {
-        if (!m || !keys) return null
-        keys.inject(m) { value, key ->
+    static Object getByKeys(Map map, String... keys) {
+        if (!map || !keys) return null
+        keys.inject(map) { value, key ->
             if (value == null) return null
-            IndexedKey indexedKey = IndexedKey.parse(key)
-            if (!indexedKey) {
+            Matcher matcher = (key =~ KEY_WITH_INDEX_PATTERN)
+            if (!matcher.matches()) {
                 throw new IllegalArgumentException("Invalid key format: ${key}")
             }
-            if (indexedKey.baseKey != null) {
-                if (value instanceof Map) {
-                    value = value.get(indexedKey.baseKey)
-                } else {
-                    return null
-                }
+            String baseKey = matcher.group(1)?.trim() ?: null
+            String indexStr = matcher.group(2)
+            List<Integer> indices = indexStr.findAll(INDEX_PATTERN)*.toInteger()
+            if (baseKey != null) {
+                value = value instanceof Map ? value.get(baseKey) : null
             }
-            if (indexedKey.indices) {
-                if (value instanceof List) {
-                    value = getByIndices(value, indexedKey.indices)
-                } else {
-                    return null
+            if (indices && value instanceof List) {
+                value = indices.inject(value) { v, i ->
+                    v instanceof List && i >= 0 && i < v.size() ? v[i] : null
                 }
+            } else if (indices) {
+                value = null
             }
             return value
-        }
-    }
-
-    private static Object getByIndices(List l, List<Integer> indices) {
-        indices.inject(l) { value, index ->
-            if (value == null || !(value instanceof List)) return null
-            if (index >= 0 && index < value.size()) {
-                return value[index]
-            } else {
-                return null
-            }
-        }
-    }
-
-    private static class IndexedKey {
-        static final Pattern KEY_WITH_INDEX_PATTERN = ~/^([a-zA-Z_]\w*)?((?:\[\d+\])*)$/
-        static final Pattern INDEX_PATTERN = ~/\d+/
-
-        String baseKey
-        List<Integer> indices
-
-        static IndexedKey parse(String key) {
-            Matcher matcher = key =~ KEY_WITH_INDEX_PATTERN
-            if (!matcher.matches()) return null
-            String baseKey = matcher.group(1)?.trim() ?: null
-            List<Integer> indices = matcher.group(2).findAll(INDEX_PATTERN)*.toInteger()
-            return new IndexedKey(baseKey: baseKey, indices: indices)
         }
     }
 }
