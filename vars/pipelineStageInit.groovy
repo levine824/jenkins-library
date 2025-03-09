@@ -1,19 +1,15 @@
-import com.levine824.jenkins.config.ConfigHelper
+import com.levine824.jenkins.PipelineContext
 import com.levine824.jenkins.config.ConfigLoader
 import groovy.transform.Field
 
 @Field String STEP_NAME = getClass().getName()
 
 def call(Map args) {
-    def defaultYaml = libraryResource 'com/levine824/jenkins/config/config.yml'
-
-    def loader
-    if (!args.configFile) {
-        def yaml = readFile args.configFile
-        loader = ConfigLoader.load(defaultYaml, yaml)
-    } else {
-        loader = ConfigLoader.load(defaultYaml)
+    def defaultYaml = libraryResource 'config.yml'
+    def loader = new ConfigLoader().load(defaultYaml)
+    if (args.configFile) {
+        def customYaml = readFile args.configFile
+        loader.load(customYaml)
     }
-    def ctx = new ConfigHelper(loader, args.script as Script)
-    env.CONTEXT = ctx
+    env.PIPELINE_CONTEXT = new PipelineContext(args.script as Script, loader.config)
 }

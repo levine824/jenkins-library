@@ -39,13 +39,14 @@ class MapUtils {
         if (!map || !path) return null
         String escapedSep = Pattern.quote(separator)
         String[] keys = path.split(escapedSep)
-        getByKeys(map, keys)
+        get(map, keys)
     }
 
-    static Object getByKeys(Map map, String... keys) {
+    static Object get(Map map, String... keys) {
         if (!map || !keys) return null
-        keys.inject(map) { value, key ->
-            if (value == null) return null
+        Object current = map
+        for (key in keys) {
+            if (current == null) return null
             Matcher matcher = (key =~ KEY_WITH_INDEX_PATTERN)
             if (!matcher.matches()) {
                 throw new IllegalArgumentException("Invalid key format: ${key}")
@@ -54,16 +55,21 @@ class MapUtils {
             String indexStr = matcher.group(2)
             List<Integer> indices = indexStr.findAll(INDEX_PATTERN)*.toInteger()
             if (baseKey != null) {
-                value = value instanceof Map ? value.get(baseKey) : null
+                current = current instanceof Map ? current.get(baseKey) : null
             }
-            if (indices && value instanceof List) {
-                value = indices.inject(value) { v, i ->
-                    v instanceof List && i >= 0 && i < v.size() ? v[i] : null
+            if (indices) {
+                if (current instanceof List) {
+                    for (int i in indices) {
+                        if (current == null) break
+                        current = (current instanceof List && i >= 0 && i < current.size())
+                                ? current[i]
+                                : null
+                    }
+                } else {
+                    current = null
                 }
-            } else if (indices) {
-                value = null
             }
-            return value
         }
+        return current
     }
 }

@@ -11,33 +11,17 @@ class DefaultConfigMerger implements ConfigMerger {
     String defaultStrategy = STRATEGY_DEEP
     List<String> uniqueKeys = ['id', 'name']
 
-    Object merge(Object base, Object custom) {
-        if (base == null) return custom
-        if (custom == null) return base
-        if (base instanceof Map && custom instanceof Map) {
-            return mergeMap(base, custom)
-        } else if (base instanceof List && custom instanceof List) {
-            return mergeList(base, custom)
-        }
-        if (base.getClass() != custom.getClass()) {
-            throw new IllegalArgumentException('Cannot merge different types: ' +
-                    "${base.getClass().simpleName} and " +
-                    "${custom.getClass().simpleName}")
-        }
-        return custom
-    }
-
-    private Map mergeMap(Map base, Map custom) {
+    Map merge(Map base, Map custom) {
         Map merged = base + [:]
         custom.each { key, value ->
             merged[key] = merged.containsKey(key)
-                    ? merge(merged[key], value)
+                    ? mergeRecursive(merged[key], value)
                     : value
         }
         return merged
     }
 
-    private List mergeList(List base, List custom) {
+    List merge(List base, List custom) {
         List strategies = custom.findAll {
             it instanceof Map && it.containsKey(STRATEGY_MARKER)
         }
@@ -49,10 +33,10 @@ class DefaultConfigMerger implements ConfigMerger {
                 : defaultStrategy
         List cleanedCustom = custom + []
         cleanedCustom.removeAll(strategies)
-        return mergeList(base, cleanedCustom, strategy)
+        return merge(base, cleanedCustom, strategy)
     }
 
-    private List mergeList(List base, List custom, String strategy) {
+    List merge(List base, List custom, String strategy) {
         switch (strategy) {
             case STRATEGY_REPLACE:
                 return custom
@@ -69,8 +53,24 @@ class DefaultConfigMerger implements ConfigMerger {
         }
     }
 
+    private Object mergeRecursive(Object base, Object custom) {
+        if (base == null) return custom
+        if (custom == null) return base
+        if (base instanceof Map && custom instanceof Map) {
+            return merge(base, custom)
+        } else if (base instanceof List && custom instanceof List) {
+            return merge(base, custom)
+        }
+        if (base.getClass() != custom.getClass()) {
+            throw new IllegalArgumentException('Cannot merge different types: ' +
+                    "${base.getClass().simpleName} and " +
+                    "${custom.getClass().simpleName}")
+        }
+        return custom
+    }
+
     private List deepMerge(List base, List custom) {
-        return keyBasedMerge(base, custom) { be, ce -> merge(be, ce) }
+        return keyBasedMerge(base, custom) { be, ce -> mergeRecursive(be, ce) }
     }
 
     private List keyBasedMerge(List base, List custom) {

@@ -8,7 +8,7 @@ class EnvironmentUtils {
 
     static List toEnvVars(Map map) {
         map?.collect { k, v ->
-            "${toEnvKey(k.toString())}=${toEnvValue(v)}".toString()
+            "${toEnvKey(k?.toString())} = ${toEnvValue(v)}".toString()
         } ?: []
     }
 

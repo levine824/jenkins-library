@@ -8,7 +8,39 @@ def call(Map args) {
                     }
                 }
 
+                stage('Checkout') {
+                    steps {
+                        pipelineStageCheckout
+                    }
+                }
 
+                stage('UnitTest'){
+
+                }
+
+                stage('CodeScan'){
+
+                }
+
+                stage('Compile'){
+
+                }
+
+                stage('Package'){
+
+                }
+
+                stage('Deploy'){
+
+                }
+
+                stage('Auto_test'){
+
+                }
+
+                stage('Final'){
+
+                }
             }
         }
 

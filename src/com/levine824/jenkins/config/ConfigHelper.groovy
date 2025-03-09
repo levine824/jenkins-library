@@ -15,7 +15,7 @@ class ConfigHelper implements Serializable {
     ConfigHelper(Map config, Script step) {
         this.config = config
         this.step = step
-        this.fields = getFields()
+        this.fields = getStepFields()
     }
 
     @Override
@@ -28,35 +28,35 @@ class ConfigHelper implements Serializable {
     }
 
     Map parse() {
-        Map merged = stepConfig()
+        Map merged = getStepConfig()
         fields.each { key, value ->
             Matcher matcher = key =~ CONFIG_PATHS_PATTERN
             if (matcher.matches()) {
                 String rawType = matcher.group(1)
                 String type = rawType.toLowerCase()
-                String name = fields["${rawType}_NAME"] ?: step.env."${rawType}_NAME" ?: null
-                merged.putAll(getConfigByPath(type, name, value as Set))
+                String name = stepFields["${rawType}_NAME"] ?: step.env."${rawType}_NAME" ?: null
+                merged.putAll(getConfigByPaths(type, name, value as Set))
             }
         }
         return merged
     }
 
-    Map getConfigByPath(String type, String name, Set<String> paths) {
+    Map getConfigByPaths(String type, String name, Set paths) {
         Map merged = [:]
         Map config = getConfig(type, name) as Map
         paths.each { path ->
-            merged.put(path, MapUtils.getByPath(config, path))
+            merged.put(path, MapUtils.getByPath(config, path.toString()))
         }
         return merged
     }
 
     Object getConfig(String type = '', String name = '') {
         return type
-                ? MapUtils.getByKeys(config, [type, name].findAll() as String[])
+                ? MapUtils.get(config, [type, name].findAll() as String[])
                 : config
     }
 
-    private Map getFields() {
+    private Map getStepFields() {
         Map fields = [:]
         step.getClass().getDeclaredFields().each { field ->
             if (!field.synthetic && field.declaringClass == step.class) {
@@ -67,7 +67,7 @@ class ConfigHelper implements Serializable {
         return fields
     }
 
-    private Map stepConfig() {
+    private Map getStepConfig() {
         String stepName = fields['STEP_NAME']?.toString()
         if (!stepName) {
             throw new IllegalArgumentException('Step has no public name property!')
