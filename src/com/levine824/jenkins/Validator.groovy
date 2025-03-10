@@ -4,32 +4,38 @@ class Validator {
     private Map rules = [:]
 
     Validator() {
-        register('required') { field, value, _ ->
-            if (value == null || value.trim().isEmpty()) {
-                throw new IllegalArgumentException("${field} is required")
-            }
-        }
+        registerDefaultRules()
     }
 
-    Validator register(String name, Closure rule) {
-        rules[name] = rule
+    Validator registerRule(String name, Closure c) {
+        this.rules[name] = c
         return this
     }
 
-    Map validate(Map vars, Map validations) {
+    Map validate(Map variables, Map validations) {
         Map errors = [:]
-        validations.each { varName, expressions ->
+        validations.each { varName, expr ->
             try {
-                expressions.each { expr ->
-                    String[] arr = expr?.toString()?.split(/:/, 2)
-                    String name = arr[0]
-                    String args = arr.size() > 1 ? arr[1] : null
-                    (rules[name] as Closure)?.call(varName, vars[varName], args)
+                String[] rules = expr?.toString()?.split(/,/)
+                rules.each { rule ->
+                    String[] parts = rule?.split(/=/)
+                    String ruleName = parts[0]
+                    String args = parts.size() > 1 ? parts[1] : null
+                    Closure closure = this.rules[ruleName] as Closure
+                    closure.call(varName, variables[varName], args)
                 }
             } catch (IllegalArgumentException e) {
                 errors[varName] = e.message
             }
         }
         return errors
+    }
+
+    private registerDefaultRules() {
+        registerRule('required') { name, value, _ ->
+            if (value == null) {
+                throw new IllegalArgumentException("${name} is required")
+            }
+        }
     }
 }
